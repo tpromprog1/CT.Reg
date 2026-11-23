@@ -1,7 +1,9 @@
 // Conteo de cambios de turno por año (según la fecha del turno cedido).
 
 import type { CambioTurno, EstadoCambio } from './tipos';
-import { duracionHoras, type TipoTurno } from './patterns';
+import { HORARIO_DIURNO, TURNOS, duracionHoras, type TipoTurno } from './patterns';
+import { sumarDias, type FechaISO } from './fechas';
+import { esFestivo } from './feriados';
 
 export type ConteoEstados = Record<EstadoCambio, number>;
 
@@ -69,25 +71,68 @@ export function aniosConCambios(cambios: Pick<CambioTurno, 'cedido_fecha'>[], an
 }
 
 // ---------------------------------------------------------------------
-// Conteo de turnos trabajados (calendario efectivo: patrón + ajustes + cambios)
+// Conteo de turnos y horas del mes (calendario efectivo: patrón + ajustes + cambios)
 // ---------------------------------------------------------------------
 
 export interface ConteoTurnos {
   dias: number;
   noches: number;
-  horas: number;
   /** Cuántos de esos turnos son extra. */
   extras: number;
+  horas: number;
+  /** Entre HORARIO_DIURNO.inicio y .fin, en días hábiles. */
+  diurnas: number;
+  /** Fuera del horario diurno, más todas las horas festivas. */
+  nocturnas: number;
+  /** Horas de sábado, domingo o feriado (también incluidas en nocturnas). */
+  festivas: number;
 }
 
+const aMinutos = (hhmm: string) => {
+  const [h, m] = hhmm.split(':').map(Number);
+  return (h ?? 0) * 60 + (m ?? 0);
+};
+
+/**
+ * Clasifica cada minuto del turno según su hora y su fecha real
+ * (la noche cruza la medianoche: sus horas de madrugada son del día siguiente).
+ */
+export function horasDeTurno(fecha: FechaISO, tipo: TipoTurno): { diurnas: number; nocturnas: number; festivas: number } {
+  const inicio = aMinutos(TURNOS[tipo].inicio);
+  const duracion = duracionHoras(tipo) * 60;
+  const dIni = aMinutos(HORARIO_DIURNO.inicio);
+  const dFin = aMinutos(HORARIO_DIURNO.fin);
+  const festivoHoy = esFestivo(fecha);
+  const festivoManana = esFestivo(sumarDias(fecha, 1));
+  let diurnas = 0;
+  let nocturnas = 0;
+  let festivas = 0;
+  for (let m = 0; m < duracion; m++) {
+    const abs = inicio + m;
+    const minutoDelDia = abs % 1440;
+    const festivo = abs < 1440 ? festivoHoy : festivoManana;
+    if (festivo) {
+      festivas++;
+      nocturnas++;
+    } else if (minutoDelDia >= dIni && minutoDelDia < dFin) diurnas++;
+    else nocturnas++;
+  }
+  return { diurnas: diurnas / 60, nocturnas: nocturnas / 60, festivas: festivas / 60 };
+}
+
+/** Las horas se asignan al mes en que empieza el turno. */
 export function contarTurnos(
-  dias: Iterable<{ turnos: TipoTurno[]; extras: TipoTurno[] }>,
+  dias: Iterable<{ fecha: FechaISO; turnos: TipoTurno[]; extras: TipoTurno[] }>,
 ): ConteoTurnos {
-  const r: ConteoTurnos = { dias: 0, noches: 0, horas: 0, extras: 0 };
+  const r: ConteoTurnos = { dias: 0, noches: 0, extras: 0, horas: 0, diurnas: 0, nocturnas: 0, festivas: 0 };
   for (const d of dias) {
     for (const t of d.turnos) {
       if (t === 'D') r.dias++;
       else r.noches++;
+      const h = horasDeTurno(d.fecha, t);
+      r.diurnas += h.diurnas;
+      r.nocturnas += h.nocturnas;
+      r.festivas += h.festivas;
       r.horas += duracionHoras(t);
     }
     r.extras += d.extras.length;

@@ -63,3 +63,10 @@ export function duracionHoras(tipo: TipoTurno): number {
   const diff = min(t.fin) - min(t.inicio);
   return (diff <= 0 ? diff + 24 * 60 : diff) / 60;
 }
+
+/**
+ * Horario diurno para el conteo de horas: de 08:00 a 17:00 son horas diurnas;
+ * desde las 17:00 hasta las 08:00 son nocturnas. Las horas de sábado, domingo y
+ * feriados se cuentan como "festivas" (y también como nocturnas).
+ */
+export const HORARIO_DIURNO = { inicio: '08:00', fin: '17:00' };

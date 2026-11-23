@@ -79,7 +79,7 @@ export function VistaCalendario({ uid, hoy, calendarios, cambios, ajustes, onToc
       </div>
       <Leyenda />
       {tieneAnio && (
-        <ConteoTurnos anio={actual.anio} mes={actual.mes} diasMes={dias} calendarios={calendarios} cambios={cambios} ajustes={ajustes} uid={uid} />
+        <ConteoTurnos anio={actual.anio} mes={actual.mes} diasMes={dias} />
       )}
     </section>
   );

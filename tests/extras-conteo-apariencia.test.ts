@@ -41,9 +41,10 @@ describe('conteo de días y noches', () => {
     expect(duracionHoras('N')).toBe(12);
   });
 
-  it('diciembre 2026 en cuarto turno desde el 1: 8 días, 8 noches', () => {
-    const dias = calcularDias(fechasDelMes(2026, 12), [cal], [], 'ana');
-    expect(contarTurnos(dias.values())).toEqual({ dias: 8, noches: 8, horas: 192, extras: 0 });
+  it('diciembre 2026 en cuarto turno desde el 1: 8 días, 8 noches, 192 h', () => {
+    const c = contarTurnos(calcularDias(fechasDelMes(2026, 12), [cal], [], 'ana').values());
+    expect(c).toMatchObject({ dias: 8, noches: 8, horas: 192, extras: 0 });
+    expect(c.diurnas + c.nocturnas).toBe(192);
   });
 
   it('suma extras y 24 h', () => {
@@ -52,7 +53,7 @@ describe('conteo de días y noches', () => {
       { fecha: '2026-12-03', tipo: 'N' as const, accion: 'agregar' as const, extra: true },
     ];
     const dias = calcularDias(fechasDelMes(2026, 12), [cal], [], 'ana', aj);
-    expect(contarTurnos(dias.values())).toEqual({ dias: 9, noches: 9, horas: 216, extras: 2 });
+    expect(contarTurnos(dias.values())).toMatchObject({ dias: 9, noches: 9, horas: 216, extras: 2 });
   });
 });
 

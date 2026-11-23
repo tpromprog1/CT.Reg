@@ -6,6 +6,7 @@ import { ajustesParaDia, type DiaCalendario, type EventoDia } from '../../domain
 import { tiposCedibles } from '../../domain/validaciones';
 import type { CambioTurno } from '../../domain/tipos';
 import { mensajeError } from '../../lib/errores';
+import { nombreFeriado } from '../../domain/feriados';
 import { Dialogo } from '../../ui/Dialogo';
 import { Aviso, Boton } from '../../ui/controles';
 import { CLASE_BOTON_TURNO, CLASE_TURNO } from './estilos';
@@ -164,6 +165,9 @@ export function HojaDia({ dia, pendientesPropios, onCerrar, onCambiarTurno, onAj
       }
     >
       <div className="space-y-4">
+        {nombreFeriado(dia.fecha) && (
+          <p className="text-sm font-medium text-red-800">Feriado: {nombreFeriado(dia.fecha)}</p>
+        )}
         <ul className="space-y-2">
           {dia.turnos.length === 0 && <li className={`rounded-xl px-3 py-3 ${CLASE_TURNO.L}`}>Libre</li>}
           {dia.turnos.map((t) => (

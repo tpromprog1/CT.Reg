@@ -3,6 +3,7 @@ import { partes, formatoLargo } from '../../domain/fechas';
 import { TURNOS } from '../../domain/patterns';
 import type { DiaCalendario } from '../../domain/calendario';
 import { CLASE_TEXTO_TURNO, CLASE_TURNO } from './estilos';
+import { nombreFeriado } from '../../domain/feriados';
 
 interface Props {
   dia: DiaCalendario;
@@ -17,6 +18,7 @@ export function descripcionDia(dia: DiaCalendario): string {
   const turnos = dia.turnos.length ? dia.turnos.map((t) => TURNOS[t].nombre).join(' y ') : 'Libre';
   return [
     `${formatoLargo(dia.fecha)}: ${turnos}`,
+    nombreFeriado(dia.fecha) ? `feriado (${nombreFeriado(dia.fecha)})` : '',
     dia.pendiente ? 'solicitud pendiente' : '',
     dia.modificado ? 'modificado por un cambio' : '',
     dia.extras.length ? `turno extra: ${dia.extras.map((t) => TURNOS[t].nombre).join(' y ')}` : dia.editado ? 'editado a mano' : '',
@@ -52,7 +54,7 @@ export function CeldaDia({ dia, hoy, seleccionada, deshabilitada, compacta, onCl
         className={`absolute left-1 top-0.5 text-xs font-semibold ${CLASE_TEXTO_TURNO[tipos[0] ?? 'L']}`}
         aria-hidden="true"
       >
-        {numero}
+        <span className={nombreFeriado(dia.fecha) ? 'underline decoration-2 underline-offset-2' : undefined}>{numero}</span>
         {dia.modificado && <span className="ml-0.5 font-bold">⇄</span>}
         {dia.editado && <span className="ml-0.5">{dia.extras.length > 0 ? '+' : '✎'}</span>}
       </span>
@@ -79,6 +81,7 @@ export function Leyenda() {
       {item(<span className="font-bold">⇄</span>, 'Cambio confirmado')}
       {item(<span>✎</span>, 'Editado a mano')}
       {item(<span className="font-bold">+</span>, 'Turno extra')}
+      {item(<span className="font-semibold underline decoration-2 underline-offset-2">8</span>, 'Feriado')}
     </ul>
   );
 }
