@@ -31,6 +31,8 @@ export function CeldaDia({ dia, hoy, seleccionada, deshabilitada, compacta, onCl
   const { dia: numero } = partes(dia.fecha);
   const alto = compacta ? 'h-11' : 'h-14 sm:h-20';
   const tipos = dia.turnos.length ? dia.turnos : (['L'] as const);
+  // Feriado: borde rojo grueso dentro de la celda (no choca con los anillos de "hoy" y selección).
+  const feriado = nombreFeriado(dia.fecha) ? 'border-[3px] border-red-600' : '';
 
   return (
     <button
@@ -40,7 +42,7 @@ export function CeldaDia({ dia, hoy, seleccionada, deshabilitada, compacta, onCl
       aria-label={descripcionDia(dia)}
       aria-pressed={seleccionada === undefined ? undefined : seleccionada}
       aria-current={hoy ? 'date' : undefined}
-      className={`relative flex w-full overflow-hidden rounded-lg ${alto} ${
+      className={`relative flex w-full overflow-hidden rounded-lg ${alto} ${feriado} ${
         seleccionada ? 'ring-4 ring-gray-900' : hoy ? 'ring-2 ring-gray-900 ring-offset-1' : ''
       } ${deshabilitada ? 'cursor-not-allowed opacity-35' : 'hover:brightness-95'} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700`}
     >
@@ -81,7 +83,7 @@ export function Leyenda() {
       {item(<span className="font-bold">⇄</span>, 'Cambio confirmado')}
       {item(<span>✎</span>, 'Editado a mano')}
       {item(<span className="font-bold">+</span>, 'Turno extra')}
-      {item(<span className="font-semibold underline decoration-2 underline-offset-2">8</span>, 'Feriado')}
+      {item(<span className="flex h-5 w-5 items-center justify-center rounded border-[3px] border-red-600 text-xs font-semibold underline">8</span>, 'Feriado')}
     </ul>
   );
 }
