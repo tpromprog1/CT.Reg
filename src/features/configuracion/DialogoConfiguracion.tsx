@@ -11,6 +11,7 @@ import {
 import { mensajeError } from '../../lib/errores';
 import { Dialogo } from '../../ui/Dialogo';
 import { Aviso, Boton, Campo } from '../../ui/controles';
+import { SeccionApariencia } from './SeccionApariencia';
 
 interface Props {
   perfil: Perfil;
@@ -68,6 +69,11 @@ export function DialogoConfiguracion({ perfil, obligatorio, onGuardado, onCerrar
           <Boton variante="secundario" className="w-full" onClick={onAbrirGenerador}>
             Generar / regenerar calendario
           </Boton>
+        </div>
+      )}
+      {!obligatorio && (
+        <div className="mt-6 border-t border-gray-100 pt-4">
+          <SeccionApariencia perfil={perfil} onGuardado={onGuardado} />
         </div>
       )}
     </Dialogo>

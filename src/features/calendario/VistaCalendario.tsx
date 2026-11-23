@@ -6,6 +6,7 @@ import { Boton } from '../../ui/controles';
 import { useDiasMes } from '../useDatosUsuario';
 import { Leyenda } from './CeldaDia';
 import { GrillaMes } from './MiniCalendario';
+import { ConteoTurnos } from './ConteoTurnos';
 
 interface Props {
   uid: string;
@@ -77,6 +78,9 @@ export function VistaCalendario({ uid, hoy, calendarios, cambios, ajustes, onToc
         )}
       </div>
       <Leyenda />
+      {tieneAnio && (
+        <ConteoTurnos anio={actual.anio} mes={actual.mes} diasMes={dias} calendarios={calendarios} cambios={cambios} ajustes={ajustes} uid={uid} />
+      )}
     </section>
   );
 }

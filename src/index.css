@@ -3,6 +3,19 @@
 @tailwind utilities;
 
 @layer base {
+  /* Valores por defecto (iguales a APARIENCIA_POR_DEFECTO); la app los reemplaza con los del perfil. */
+  :root {
+    --color-dia: #facc15;
+    --color-dia-texto: #000000;
+    --color-noche: #1e40af;
+    --color-noche-texto: #ffffff;
+    --color-libre: #f3f4f6;
+    --color-libre-texto: #4b5563;
+    --color-fondo: #f9fafb;
+    --color-fondo-texto: #000000;
+  }
   html { -webkit-tap-highlight-color: transparent; }
-  body { min-height: 100dvh; }
+  /* Las tarjetas blancas mantienen texto oscuro aunque el fondo elegido sea oscuro. */
+  .bg-white { color: #111827; }
+  body { min-height: 100dvh; background-color: var(--color-fondo); }
 }

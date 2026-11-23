@@ -4,12 +4,13 @@ import type { CambioTurno, Calendario, Colega, Perfil } from '../domain/tipos';
 import type { SistemaId, TipoTurno } from '../domain/patterns';
 import type { FechaISO } from '../domain/fechas';
 import type { AjusteCalendario } from '../domain/calendario';
+import type { Apariencia } from '../domain/apariencia';
 
 const COLUMNAS_CAMBIO =
   'id, solicitante_id, solicitante_nombre, cobertura_id, cobertura_nombre, cobertura_correo, cedido_fecha, cedido_tipo, devolucion_fecha, devolucion_tipo, estado, correo_estado, correo_enviado_at, correo_jefatura_usado, created_at, confirmado_at, anulado_at';
 
 export async function cargarPerfil(uid: string): Promise<Perfil> {
-  const { data, error } = await supabase.from('perfiles').select('id, nombre, correo_jefatura').eq('id', uid).single();
+  const { data, error } = await supabase.from('perfiles').select('id, nombre, correo_jefatura, apariencia').eq('id', uid).single();
   if (error) throw error;
   return data as Perfil;
 }
@@ -19,7 +20,7 @@ export async function guardarPerfil(uid: string, datos: { nombre: string; correo
     .from('perfiles')
     .update(datos)
     .eq('id', uid)
-    .select('id, nombre, correo_jefatura')
+    .select('id, nombre, correo_jefatura, apariencia')
     .single();
   if (error) throw error;
   return data as Perfil;
@@ -138,4 +139,15 @@ export async function cargarAjustes(): Promise<AjusteCalendario[]> {
 export async function guardarAjustesDia(fecha: FechaISO, ajustes: Omit<AjusteCalendario, 'fecha'>[]): Promise<void> {
   const { error } = await supabase.rpc('guardar_ajustes_dia', { p_fecha: fecha, p_ajustes: ajustes });
   if (error) throw error;
+}
+
+export async function guardarApariencia(uid: string, apariencia: Apariencia): Promise<Perfil> {
+  const { data, error } = await supabase
+    .from('perfiles')
+    .update({ apariencia })
+    .eq('id', uid)
+    .select('id, nombre, correo_jefatura, apariencia')
+    .single();
+  if (error) throw error;
+  return data as Perfil;
 }

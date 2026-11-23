@@ -47,6 +47,8 @@ export interface AjusteCalendario {
   fecha: FechaISO;
   tipo: TipoTurno;
   accion: 'agregar' | 'quitar';
+  /** Solo para 'agregar': turno extra (fuera del sistema habitual). */
+  extra?: boolean;
 }
 
 export interface DiaCalendario {
@@ -57,6 +59,8 @@ export interface DiaCalendario {
   propios: TipoTurno[];
   /** El día tiene ajustes manuales. */
   editado: boolean;
+  /** Turnos agregados a mano marcados como extra (y que siguen en el día). */
+  extras: TipoTurno[];
   turnos: TipoTurno[];
   eventos: EventoDia[];
   /** Hay una solicitud pendiente que involucra esta fecha. */
@@ -88,11 +92,11 @@ export function calcularDias(
   usuarioId: string,
   ajustes: AjusteCalendario[] = [],
 ): Map<FechaISO, DiaCalendario> {
-  const mapa = new Map<FechaISO, DiaCalendario & { set: Set<TipoTurno> }>();
+  const mapa = new Map<FechaISO, DiaCalendario & { set: Set<TipoTurno>; setExtra: Set<TipoTurno> }>();
   for (const fecha of fechas) {
     const base = turnosBase(configDelAnio(calendarios, partes(fecha).anio), fecha);
     mapa.set(fecha, {
-      fecha, base, propios: [], editado: false, turnos: [], set: new Set(base), eventos: [], pendiente: false, modificado: false,
+      fecha, base, propios: [], editado: false, extras: [], turnos: [], set: new Set(base), setExtra: new Set(), eventos: [], pendiente: false, modificado: false,
     });
   }
 
@@ -100,8 +104,10 @@ export function calcularDias(
   for (const a of ajustes) {
     const dia = mapa.get(a.fecha);
     if (!dia) continue;
-    if (a.accion === 'agregar') dia.set.add(a.tipo);
-    else dia.set.delete(a.tipo);
+    if (a.accion === 'agregar') {
+      dia.set.add(a.tipo);
+      if (a.extra) dia.setExtra.add(a.tipo);
+    } else dia.set.delete(a.tipo);
     dia.editado = true;
   }
   for (const dia of mapa.values()) dia.propios = ordenar(dia.set);
@@ -161,7 +167,10 @@ export function calcularDias(
   }
 
   const resultado = new Map<FechaISO, DiaCalendario>();
-  for (const [fecha, { set, ...dia }] of mapa) resultado.set(fecha, { ...dia, turnos: ordenar(set) });
+  for (const [fecha, { set, setExtra, ...dia }] of mapa) {
+    const turnos = ordenar(set);
+    resultado.set(fecha, { ...dia, turnos, extras: turnos.filter((t) => setExtra.has(t)) });
+  }
   return resultado;
 }
 
@@ -179,12 +188,16 @@ export function calcularDia(
  * Ajustes necesarios para que un día quede con los turnos "deseados" (patrón + ajustes).
  * Si lo deseado coincide con el patrón, no hay ajustes.
  */
-export function ajustesParaDia(base: TipoTurno[], deseados: TipoTurno[]): Omit<AjusteCalendario, 'fecha'>[] {
+export function ajustesParaDia(
+  base: TipoTurno[],
+  deseados: TipoTurno[],
+  extras: TipoTurno[] = [],
+): Omit<AjusteCalendario, 'fecha'>[] {
   const res: Omit<AjusteCalendario, 'fecha'>[] = [];
   for (const tipo of ORDEN) {
     const enBase = base.includes(tipo);
     const quiero = deseados.includes(tipo);
-    if (quiero && !enBase) res.push({ tipo, accion: 'agregar' });
+    if (quiero && !enBase) res.push({ tipo, accion: 'agregar', ...(extras.includes(tipo) ? { extra: true } : {}) });
     if (!quiero && enBase) res.push({ tipo, accion: 'quitar' });
   }
   return res;

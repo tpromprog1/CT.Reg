@@ -52,3 +52,14 @@ export function etiquetaTurno(tipo: TipoTurno): string {
   const t = TURNOS[tipo];
   return `${t.nombre} (${t.inicio}–${t.fin})`;
 }
+
+/** Duración en horas según inicio y fin (si el fin es menor o igual, cruza la medianoche). */
+export function duracionHoras(tipo: TipoTurno): number {
+  const min = (hhmm: string) => {
+    const [h, m] = hhmm.split(':').map(Number);
+    return (h ?? 0) * 60 + (m ?? 0);
+  };
+  const t = TURNOS[tipo];
+  const diff = min(t.fin) - min(t.inicio);
+  return (diff <= 0 ? diff + 24 * 60 : diff) / 60;
+}

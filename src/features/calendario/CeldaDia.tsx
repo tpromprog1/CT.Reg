@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { partes, formatoLargo } from '../../domain/fechas';
 import { TURNOS } from '../../domain/patterns';
 import type { DiaCalendario } from '../../domain/calendario';
-import { CLASE_TURNO } from './estilos';
+import { CLASE_TEXTO_TURNO, CLASE_TURNO } from './estilos';
 
 interface Props {
   dia: DiaCalendario;
@@ -19,7 +19,7 @@ export function descripcionDia(dia: DiaCalendario): string {
     `${formatoLargo(dia.fecha)}: ${turnos}`,
     dia.pendiente ? 'solicitud pendiente' : '',
     dia.modificado ? 'modificado por un cambio' : '',
-    dia.editado ? 'editado a mano' : '',
+    dia.extras.length ? `turno extra: ${dia.extras.map((t) => TURNOS[t].nombre).join(' y ')}` : dia.editado ? 'editado a mano' : '',
   ]
     .filter(Boolean)
     .join(', ');
@@ -49,14 +49,12 @@ export function CeldaDia({ dia, hoy, seleccionada, deshabilitada, compacta, onCl
         </span>
       ))}
       <span
-        className={`absolute left-1 top-0.5 text-xs font-semibold ${
-          tipos[0] === 'N' ? 'text-white' : 'text-gray-800'
-        }`}
+        className={`absolute left-1 top-0.5 text-xs font-semibold ${CLASE_TEXTO_TURNO[tipos[0] ?? 'L']}`}
         aria-hidden="true"
       >
         {numero}
         {dia.modificado && <span className="ml-0.5 font-bold">⇄</span>}
-        {dia.editado && <span className="ml-0.5">✎</span>}
+        {dia.editado && <span className="ml-0.5">{dia.extras.length > 0 ? '+' : '✎'}</span>}
       </span>
       {dia.pendiente && (
         <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-pendiente ring-2 ring-white" aria-hidden="true" />
@@ -73,13 +71,14 @@ export function Leyenda() {
     </li>
   );
   return (
-    <ul className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-gray-700" aria-label="Leyenda">
+    <ul className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-fondo-texto" aria-label="Leyenda">
       {item(<span className={`flex h-5 w-5 items-center justify-center rounded text-xs font-bold ${CLASE_TURNO.D}`}>D</span>, `Día ${TURNOS.D.inicio}–${TURNOS.D.fin}`)}
       {item(<span className={`flex h-5 w-5 items-center justify-center rounded text-xs font-bold ${CLASE_TURNO.N}`}>N</span>, `Noche ${TURNOS.N.inicio}–${TURNOS.N.fin}`)}
       {item(<span className={`h-5 w-5 rounded border border-gray-200 ${CLASE_TURNO.L}`} />, 'Libre')}
       {item(<span className="h-3 w-3 rounded-full bg-pendiente" />, 'Pendiente')}
       {item(<span className="font-bold">⇄</span>, 'Cambio confirmado')}
       {item(<span>✎</span>, 'Editado a mano')}
+      {item(<span className="font-bold">+</span>, 'Turno extra')}
     </ul>
   );
 }

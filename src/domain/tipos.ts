@@ -5,6 +5,8 @@ export interface Perfil {
   id: string;
   nombre: string | null;
   correo_jefatura: string | null;
+  /** Colores elegidos (jsonb); se valida con sanitizarApariencia. */
+  apariencia?: unknown;
 }
 
 export interface Calendario {

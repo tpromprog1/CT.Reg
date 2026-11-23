@@ -1,6 +1,7 @@
 // Conteo de cambios de turno por año (según la fecha del turno cedido).
 
 import type { CambioTurno, EstadoCambio } from './tipos';
+import { duracionHoras, type TipoTurno } from './patterns';
 
 export type ConteoEstados = Record<EstadoCambio, number>;
 
@@ -65,4 +66,31 @@ export function resumirCambios(cambios: CambioConteo[], usuarioId: string, anio:
 export function aniosConCambios(cambios: Pick<CambioTurno, 'cedido_fecha'>[], anioActual: number): number[] {
   const set = new Set<number>([anioActual, ...cambios.map((c) => Number(c.cedido_fecha.slice(0, 4)))]);
   return [...set].sort((a, b) => b - a);
+}
+
+// ---------------------------------------------------------------------
+// Conteo de turnos trabajados (calendario efectivo: patrón + ajustes + cambios)
+// ---------------------------------------------------------------------
+
+export interface ConteoTurnos {
+  dias: number;
+  noches: number;
+  horas: number;
+  /** Cuántos de esos turnos son extra. */
+  extras: number;
+}
+
+export function contarTurnos(
+  dias: Iterable<{ turnos: TipoTurno[]; extras: TipoTurno[] }>,
+): ConteoTurnos {
+  const r: ConteoTurnos = { dias: 0, noches: 0, horas: 0, extras: 0 };
+  for (const d of dias) {
+    for (const t of d.turnos) {
+      if (t === 'D') r.dias++;
+      else r.noches++;
+      r.horas += duracionHoras(t);
+    }
+    r.extras += d.extras.length;
+  }
+  return r;
 }

@@ -36,17 +36,23 @@ const nombres = (t: TipoTurno[]) => (t.length ? t.map((x) => TURNOS[x].nombre).j
 export function HojaDia({ dia, pendientesPropios, onCerrar, onCambiarTurno, onAjustado }: Props) {
   const [editando, setEditando] = useState(false);
   const [deseados, setDeseados] = useState<TipoTurno[]>(dia.propios);
+  // Turnos agregados que NO son extra (por defecto, todo turno agregado es extra).
+  const [noExtra, setNoExtra] = useState<TipoTurno[]>(
+    dia.propios.filter((t) => !dia.base.includes(t) && !dia.extras.includes(t)),
+  );
+  const agregados = deseados.filter((t) => !dia.base.includes(t));
+  const extrasDeseados = agregados.filter((t) => !noExtra.includes(t));
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const cedibles = tiposCedibles(dia, pendientesPropios);
   const conPendiente = dia.turnos.filter((t) => !cedibles.includes(t));
 
-  async function guardar(lista: TipoTurno[]) {
+  async function guardar(lista: TipoTurno[], extras: TipoTurno[]) {
     setGuardando(true);
     setError(null);
     try {
-      await guardarAjustesDia(dia.fecha, ajustesParaDia(dia.base, lista));
+      await guardarAjustesDia(dia.fecha, ajustesParaDia(dia.base, lista, extras));
       await onAjustado();
       setEditando(false);
     } catch (e) {
@@ -60,14 +66,16 @@ export function HojaDia({ dia, pendientesPropios, onCerrar, onCambiarTurno, onAj
     setDeseados((d) => (d.includes(t) ? d.filter((x) => x !== t) : (['D', 'N'] as const).filter((x) => x === t || d.includes(x))));
 
   if (editando) {
-    const sinCambios = deseados.length === dia.propios.length && deseados.every((t) => dia.propios.includes(t));
+    const sinCambios =
+      JSON.stringify(ajustesParaDia(dia.base, deseados, extrasDeseados)) ===
+      JSON.stringify(ajustesParaDia(dia.base, dia.propios, dia.extras));
     return (
       <Dialogo
         titulo="Editar turnos del día"
         onCerrar={onCerrar}
         onVolver={() => setEditando(false)}
         pie={
-          <Boton className="w-full" cargando={guardando} disabled={sinCambios} onClick={() => guardar(deseados)}>
+          <Boton className="w-full" cargando={guardando} disabled={sinCambios} onClick={() => guardar(deseados, extrasDeseados)}>
             Guardar
           </Boton>
         }
@@ -93,6 +101,22 @@ export function HojaDia({ dia, pendientesPropios, onCerrar, onCambiarTurno, onAj
               );
             })}
           </div>
+          {agregados.map((t) => (
+            <label key={t} className="flex min-h-11 items-center gap-3 rounded-xl bg-gray-50 px-3 py-2">
+              <input
+                type="checkbox"
+                className="h-5 w-5"
+                checked={!noExtra.includes(t)}
+                onChange={(e) =>
+                  setNoExtra((n) => (e.target.checked ? n.filter((x) => x !== t) : [...n, t]))
+                }
+              />
+              <span>
+                <span className="font-medium">{TURNOS[t].nombre}: turno extra</span>
+                <span className="block text-xs text-gray-600">Se marca con + y se cuenta aparte.</span>
+              </span>
+            </label>
+          ))}
           <p className="text-sm text-gray-700">
             Quedará: <strong>{deseados.length === 2 ? 'Día y Noche (24 h)' : nombres(deseados)}</strong>
           </p>
@@ -104,7 +128,7 @@ export function HojaDia({ dia, pendientesPropios, onCerrar, onCambiarTurno, onAj
             <Aviso tipo="info">Los cambios confirmados de este día se siguen aplicando encima.</Aviso>
           )}
           {dia.editado && (
-            <Boton variante="secundario" className="w-full" cargando={guardando} onClick={() => guardar(dia.base)}>
+            <Boton variante="secundario" className="w-full" cargando={guardando} onClick={() => guardar(dia.base, [])}>
               Volver al patrón ({nombres(dia.base)})
             </Boton>
           )}
@@ -130,6 +154,7 @@ export function HojaDia({ dia, pendientesPropios, onCerrar, onCambiarTurno, onAj
             className="w-full"
             onClick={() => {
               setDeseados(dia.propios);
+              setNoExtra(dia.propios.filter((t) => !dia.base.includes(t) && !dia.extras.includes(t)));
               setEditando(true);
             }}
           >
@@ -149,6 +174,9 @@ export function HojaDia({ dia, pendientesPropios, onCerrar, onCambiarTurno, onAj
           ))}
         </ul>
         {dia.turnos.length === 2 && <p className="text-sm font-medium text-gray-700">Jornada de 24 horas.</p>}
+        {dia.extras.length > 0 && (
+          <p className="text-sm font-medium text-gray-700">+ Turno extra: {nombres(dia.extras)}.</p>
+        )}
         {dia.editado && (
           <p className="text-sm text-gray-600">✎ Editado a mano (según tu sistema: {nombres(dia.base)}).</p>
         )}

@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './lib/supabase';
 import { hoyEnChile, partes, type FechaISO } from './domain/fechas';
 import type { TipoTurno } from './domain/patterns';
 import { calcularDia } from './domain/calendario';
+import { aplicarApariencia, sanitizarApariencia } from './domain/apariencia';
 import { Aviso, Boton, Cargando } from './ui/controles';
 import { useDatosUsuario } from './features/useDatosUsuario';
 import { DialogoConfiguracion } from './features/configuracion/DialogoConfiguracion';
@@ -29,6 +30,20 @@ export function Home({ sesion }: { sesion: Session }) {
   const [generadorDescartado, setGeneradorDescartado] = useState(false);
   const [diaAbierto, setDiaAbierto] = useState<FechaISO | null>(null);
   const [solicitud, setSolicitud] = useState<{ fecha: FechaISO; tipo: TipoTurno } | null>(null);
+
+  // Colores del perfil (también se recuerdan en este dispositivo para evitar parpadeo al abrir).
+  const aparienciaPerfil = perfil?.apariencia;
+  const hayPerfil = !!perfil;
+  useEffect(() => {
+    if (!hayPerfil) return;
+    const a = sanitizarApariencia(aparienciaPerfil);
+    aplicarApariencia(a);
+    try {
+      localStorage.setItem('apariencia', JSON.stringify(a));
+    } catch {
+      // almacenamiento no disponible: no es necesario
+    }
+  }, [hayPerfil, aparienciaPerfil]);
 
   const pendientesPropios = useMemo(
     () => cambios.filter((c) => c.solicitante_id === uid && c.estado === 'pendiente'),
@@ -101,7 +116,7 @@ export function Home({ sesion }: { sesion: Session }) {
         </nav>
       </header>
 
-      <main className="mx-auto max-w-3xl px-3 py-4">
+      <main className="mx-auto max-w-3xl px-3 py-4 text-fondo-texto">
         {datos.error && (
           <div className="mb-3">
             <Aviso tipo="error">
