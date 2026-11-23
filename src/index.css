@@ -13,6 +13,7 @@
     --color-libre-texto: #4b5563;
     --color-fondo: #f9fafb;
     --color-fondo-texto: #000000;
+    --color-feriado: #dc2626;
   }
   html { -webkit-tap-highlight-color: transparent; }
   /* Las tarjetas blancas mantienen texto oscuro aunque el fondo elegido sea oscuro. */

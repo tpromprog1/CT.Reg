@@ -59,7 +59,10 @@ describe('conteo de días y noches', () => {
 
 describe('apariencia', () => {
   it('solo acepta colores hex y completa con los por defecto', () => {
+    // Un perfil guardado antes de existir "feriado" toma el color por defecto.
     const a = sanitizarApariencia({ dia: '#ABCDEF', noche: 'red', libre: 'url(javascript:alert(1))', fondo: 42 });
+    expect(a.feriado).toBe('#dc2626');
+    expect(sanitizarApariencia({ feriado: '#0E7490' }).feriado).toBe('#0e7490');
     expect(a).toEqual({ ...APARIENCIA_POR_DEFECTO, dia: '#abcdef' });
     expect(sanitizarApariencia(null)).toEqual(APARIENCIA_POR_DEFECTO);
     expect(sanitizarApariencia('x')).toEqual(APARIENCIA_POR_DEFECTO);

@@ -166,7 +166,10 @@ export function HojaDia({ dia, pendientesPropios, onCerrar, onCambiarTurno, onAj
     >
       <div className="space-y-4">
         {nombreFeriado(dia.fecha) && (
-          <p className="text-sm font-medium text-red-800">Feriado: {nombreFeriado(dia.fecha)}</p>
+          <p className="flex items-center gap-2 text-sm font-medium text-gray-900">
+            <span className="h-4 w-4 rounded border-[3px] border-feriado" aria-hidden="true" />
+            Feriado: {nombreFeriado(dia.fecha)}
+          </p>
         )}
         <ul className="space-y-2">
           {dia.turnos.length === 0 && <li className={`rounded-xl px-3 py-3 ${CLASE_TURNO.L}`}>Libre</li>}

@@ -32,7 +32,7 @@ export function CeldaDia({ dia, hoy, seleccionada, deshabilitada, compacta, onCl
   const alto = compacta ? 'h-11' : 'h-14 sm:h-20';
   const tipos = dia.turnos.length ? dia.turnos : (['L'] as const);
   // Feriado: borde rojo grueso dentro de la celda (no choca con los anillos de "hoy" y selección).
-  const feriado = nombreFeriado(dia.fecha) ? 'border-[3px] border-red-600' : '';
+  const feriado = nombreFeriado(dia.fecha) ? 'border-[3px] border-feriado' : '';
 
   return (
     <button
@@ -83,7 +83,7 @@ export function Leyenda() {
       {item(<span className="font-bold">⇄</span>, 'Cambio confirmado')}
       {item(<span>✎</span>, 'Editado a mano')}
       {item(<span className="font-bold">+</span>, 'Turno extra')}
-      {item(<span className="flex h-5 w-5 items-center justify-center rounded border-[3px] border-red-600 text-xs font-semibold underline">8</span>, 'Feriado')}
+      {item(<span className="flex h-5 w-5 items-center justify-center rounded border-[3px] border-feriado text-xs font-semibold underline">8</span>, 'Feriado')}
     </ul>
   );
 }

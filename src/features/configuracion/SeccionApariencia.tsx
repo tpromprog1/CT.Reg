@@ -17,6 +17,7 @@ const CAMPOS: { clave: keyof Apariencia; etiqueta: string }[] = [
   { clave: 'noche', etiqueta: 'Noche' },
   { clave: 'libre', etiqueta: 'Libre' },
   { clave: 'fondo', etiqueta: 'Fondo de la app' },
+  { clave: 'feriado', etiqueta: 'Borde de feriado' },
 ];
 
 /** Colores de turnos y fondo. Vista previa en vivo; al salir sin guardar se restauran. */
@@ -70,7 +71,7 @@ export function SeccionApariencia({ perfil, onGuardado }: { perfil: Perfil; onGu
               className="flex min-h-11 items-center gap-2 rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-sm hover:bg-gray-50"
             >
               <span className="flex overflow-hidden rounded" aria-hidden="true">
-                {(['dia', 'noche', 'libre'] as const).map((k) => (
+                {(['dia', 'noche', 'libre', 'feriado'] as const).map((k) => (
                   <span key={k} className="h-5 w-4" style={{ backgroundColor: p.colores[k] }} />
                 ))}
               </span>
@@ -106,6 +107,12 @@ export function SeccionApariencia({ perfil, onGuardado }: { perfil: Perfil; onGu
               {letra}
             </span>
           ))}
+          <span
+            className="flex h-12 flex-1 items-center justify-center rounded-lg border-[3px] text-xs font-bold"
+            style={{ backgroundColor: colores.noche, color: colorTexto(colores.noche), borderColor: colores.feriado }}
+          >
+            Feriado
+          </span>
         </div>
       </div>
 

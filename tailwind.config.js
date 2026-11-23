@@ -10,6 +10,7 @@ export default {
         noche: { DEFAULT: 'var(--color-noche)', texto: 'var(--color-noche-texto)' },
         libre: { DEFAULT: 'var(--color-libre)', texto: 'var(--color-libre-texto)' },
         fondo: { DEFAULT: 'var(--color-fondo)', texto: 'var(--color-fondo-texto)' },
+        feriado: { DEFAULT: 'var(--color-feriado)' },
         pendiente: { DEFAULT: '#EA580C' },
       },
     },

@@ -7,6 +7,8 @@ export interface Apariencia {
   noche: string;
   libre: string;
   fondo: string;
+  /** Borde de los días feriados. */
+  feriado: string;
 }
 
 export const APARIENCIA_POR_DEFECTO: Apariencia = {
@@ -14,18 +16,19 @@ export const APARIENCIA_POR_DEFECTO: Apariencia = {
   noche: '#1e40af',
   libre: '#f3f4f6',
   fondo: '#f9fafb',
+  feriado: '#dc2626',
 };
 
 export const PRESETS: { nombre: string; colores: Apariencia }[] = [
   { nombre: 'Clásico', colores: APARIENCIA_POR_DEFECTO },
-  { nombre: 'Pastel', colores: { dia: '#fde68a', noche: '#a5b4fc', libre: '#f5f5f4', fondo: '#fdf2f8' } },
-  { nombre: 'Bosque', colores: { dia: '#86efac', noche: '#14532d', libre: '#ecfdf5', fondo: '#f0fdf4' } },
-  { nombre: 'Atardecer', colores: { dia: '#fb923c', noche: '#581c87', libre: '#fff7ed', fondo: '#fffbeb' } },
-  { nombre: 'Alto contraste', colores: { dia: '#ffff00', noche: '#000000', libre: '#ffffff', fondo: '#e5e7eb' } },
+  { nombre: 'Pastel', colores: { dia: '#fde68a', noche: '#a5b4fc', libre: '#f5f5f4', fondo: '#fdf2f8', feriado: '#e11d48' } },
+  { nombre: 'Bosque', colores: { dia: '#86efac', noche: '#14532d', libre: '#ecfdf5', fondo: '#f0fdf4', feriado: '#dc2626' } },
+  { nombre: 'Atardecer', colores: { dia: '#fb923c', noche: '#581c87', libre: '#fff7ed', fondo: '#fffbeb', feriado: '#0e7490' } },
+  { nombre: 'Alto contraste', colores: { dia: '#ffff00', noche: '#000000', libre: '#ffffff', fondo: '#e5e7eb', feriado: '#ff0000' } },
 ];
 
 const RE_HEX = /^#[0-9a-f]{6}$/i;
-const CLAVES = ['dia', 'noche', 'libre', 'fondo'] as const;
+const CLAVES = ['dia', 'noche', 'libre', 'fondo', 'feriado'] as const;
 
 export function esColorValido(v: unknown): v is string {
   return typeof v === 'string' && RE_HEX.test(v);
@@ -77,6 +80,7 @@ export function variablesCss(a: Apariencia): Record<string, string> {
     '--color-libre-texto': contraste(a.libre, '#4b5563') >= 4.5 ? '#4b5563' : colorTexto(a.libre),
     '--color-fondo': a.fondo,
     '--color-fondo-texto': colorTexto(a.fondo),
+    '--color-feriado': a.feriado,
   };
 }
 
