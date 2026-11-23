@@ -138,5 +138,5 @@ async function manejarSolicitud(req: Request, deps: Dependencias): Promise<Respo
 
   await deps.marcarCorreo(cambio.id, { estado: r.ok ? 'enviado' : 'error', jefatura });
   deps.log({ cambio_id: cambio.id, resultado: r.ok ? 'enviado' : `error:${r.detalle}` });
-  return r.ok ? responder(200, { ok: true }) : responder(502, { ok: false, codigo: 'envio_fallido' });
+  return r.ok ? responder(200, { ok: true }) : responder(502, { ok: false, codigo: 'envio_fallido', detalle: r.detalle });
 }

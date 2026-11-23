@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { manejar, type CambioServidor, type Dependencias } from '../supabase/functions/enviar-cambio-turno/handler';
 import { crearProveedorResend } from '../supabase/functions/enviar-cambio-turno/mail/resend';
 import type { MensajeCorreo } from '../supabase/functions/enviar-cambio-turno/mail/provider';
+import { crearProveedorSmtp } from '../supabase/functions/enviar-cambio-turno/mail/smtp';
 
 const ORIGEN = 'https://turnos.example.test';
 const ID = '6f1c1b1e-1111-4111-8111-111111111111';
@@ -179,5 +180,35 @@ describe('proveedor Resend', () => {
     const p = crearProveedorResend('re_prueba', (async () => new Response('{"message":"x@y.z invalid"}', { status: 422 })) as typeof fetch);
     const r = await p.enviar({ de: '', para: [], cc: [], responderA: '', asunto: '', texto: '', html: '', claveIdempotencia: ID });
     expect(r).toEqual({ ok: false, detalle: 'resend_http_422' });
+  });
+});
+
+describe('proveedor SMTP', () => {
+  const mensaje = {
+    de: 'Cambios de Turno <turnos.prueba@example.test>', para: ['j@example.test'], cc: ['a@example.test', 'b@example.test'],
+    responderA: 'a@example.test', asunto: 'Cambio de turno', texto: 'PENDIENTE DE CONFIRMAR', html: '<p>x</p>', claveIdempotencia: ID,
+  };
+
+  it('envía con from, to, cc y replyTo', async () => {
+    const sendMail = vi.fn(async () => ({}));
+    const r = await crearProveedorSmtp({ sendMail }).enviar(mensaje);
+    expect(r).toEqual({ ok: true });
+    expect(sendMail).toHaveBeenCalledWith({
+      from: mensaje.de, to: ['j@example.test'], cc: ['a@example.test', 'b@example.test'],
+      replyTo: 'a@example.test', subject: 'Cambio de turno', text: 'PENDIENTE DE CONFIRMAR', html: '<p>x</p>',
+    });
+  });
+
+  it('error de autenticación: solo el código, sin el mensaje', async () => {
+    const fallo = Object.assign(new Error('Invalid login: a@example.test'), { code: 'EAUTH' });
+    const r = await crearProveedorSmtp({ sendMail: async () => { throw fallo; } }).enviar(mensaje);
+    expect(r).toEqual({ ok: false, detalle: 'smtp_EAUTH' });
+  });
+
+  it('la función devuelve el código del proveedor al cliente', async () => {
+    const { d } = deps({ mail: { enviar: async () => ({ ok: false, detalle: 'smtp_EAUTH' }) } });
+    const res = await manejar(pedir('jwt-ana'), d);
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({ ok: false, codigo: 'envio_fallido', detalle: 'smtp_EAUTH' });
   });
 });

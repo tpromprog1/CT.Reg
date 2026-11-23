@@ -155,11 +155,23 @@ GitHub Pages no permite cabeceras HTTP propias: la Content-Security-Policy va co
 2. Crea una API key con permiso *Sending access* y guárdala con `supabase secrets set`.
 3. `MAIL_FROM` debe usar una dirección de ese dominio.
 
-#### Cambiar a SMTP
+#### Alternativa sin dominio: SMTP de Gmail
 
-El envío pasa por la interfaz `MailProvider` (`supabase/functions/enviar-cambio-turno/mail/provider.ts`).
-Para usar SMTP, implementa otro proveedor con la misma interfaz y elígelo en `index.ts`.
-Usa el **puerto 465 (TLS)**: las Edge Functions bloquean los puertos 25 y 587.
+El envío pasa por la interfaz `MailProvider`; además de Resend existe un proveedor SMTP
+(`mail/smtp.ts`). Con una cuenta de Gmail:
+
+1. Activa la **verificación en 2 pasos** en la cuenta de Google.
+2. Crea una **contraseña de aplicación** en https://myaccount.google.com/apppasswords (16 caracteres).
+3. Configura los secretos (en el dashboard de Supabase → Edge Functions → Secrets, o con la CLI):
+
+   ```bash
+   npx supabase secrets set MAIL_PROVIDER=smtp SMTP_HOST=smtp.gmail.com SMTP_PORT=465      SMTP_USER=tu.cuenta@gmail.com SMTP_PASS="contraseña-de-aplicación"      MAIL_FROM="Cambios de Turno <tu.cuenta@gmail.com>"
+   ```
+
+- `MAIL_FROM` debe usar la misma cuenta de Gmail (Gmail reemplaza cualquier otro remitente).
+- Usa el **puerto 465 (TLS)**: las Edge Functions bloquean los puertos 25 y 587.
+- Gmail limita los envíos diarios (del orden de 500 por día en cuentas personales), suficiente para una unidad.
+- Para volver a Resend: `MAIL_PROVIDER=resend`.
 
 ## Seguridad y datos personales
 

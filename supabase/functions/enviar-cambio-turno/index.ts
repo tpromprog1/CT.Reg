@@ -1,10 +1,15 @@
 // Edge Function (Deno): cablea Supabase + proveedor de correo y delega en handler.ts.
-// Secretos: RESEND_API_KEY, MAIL_FROM, ALLOWED_ORIGIN (opcional MAIL_PROVIDER=simulado solo en local).
-// SUPABASE_URL, SUPABASE_ANON_KEY y SUPABASE_SERVICE_ROLE_KEY los inyecta Supabase.
+// Secretos comunes: MAIL_FROM, ALLOWED_ORIGIN y MAIL_PROVIDER (resend | smtp | simulado).
+//   resend: RESEND_API_KEY
+//   smtp:   SMTP_HOST, SMTP_PORT (465), SMTP_USER, SMTP_PASS
+// SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY los inyecta Supabase.
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import nodemailer from 'npm:nodemailer@6.9.16';
 import { manejar, type CambioServidor } from './handler.ts';
 import { crearProveedorResend, crearProveedorSimulado } from './mail/resend.ts';
+import { crearProveedorSmtp } from './mail/smtp.ts';
+import type { MailProvider } from './mail/provider.ts';
 
 const env = (k: string) => Deno.env.get(k) ?? '';
 
@@ -18,7 +23,27 @@ const admin = createClient(SUPABASE_URL, env('SUPABASE_SERVICE_ROLE_KEY'), {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
-const mail = env('MAIL_PROVIDER') === 'simulado' ? crearProveedorSimulado() : crearProveedorResend(env('RESEND_API_KEY'));
+function crearProveedor(): MailProvider {
+  switch (env('MAIL_PROVIDER')) {
+    case 'simulado':
+      return crearProveedorSimulado();
+    case 'smtp': {
+      const puerto = Number(env('SMTP_PORT') || '465');
+      return crearProveedorSmtp(
+        nodemailer.createTransport({
+          host: env('SMTP_HOST') || 'smtp.gmail.com',
+          port: puerto,
+          secure: puerto === 465, // TLS directo; 25 y 587 están bloqueados en Edge Functions
+          auth: { user: env('SMTP_USER'), pass: env('SMTP_PASS') },
+        }),
+      );
+    }
+    default:
+      return crearProveedorResend(env('RESEND_API_KEY'));
+  }
+}
+
+const mail = crearProveedor();
 
 Deno.serve((req) =>
   manejar(req, {
