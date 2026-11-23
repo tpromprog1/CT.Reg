@@ -19,6 +19,7 @@ export function descripcionDia(dia: DiaCalendario): string {
     `${formatoLargo(dia.fecha)}: ${turnos}`,
     dia.pendiente ? 'solicitud pendiente' : '',
     dia.modificado ? 'modificado por un cambio' : '',
+    dia.editado ? 'editado a mano' : '',
   ]
     .filter(Boolean)
     .join(', ');
@@ -55,6 +56,7 @@ export function CeldaDia({ dia, hoy, seleccionada, deshabilitada, compacta, onCl
       >
         {numero}
         {dia.modificado && <span className="ml-0.5 font-bold">⇄</span>}
+        {dia.editado && <span className="ml-0.5">✎</span>}
       </span>
       {dia.pendiente && (
         <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-pendiente ring-2 ring-white" aria-hidden="true" />
@@ -77,6 +79,7 @@ export function Leyenda() {
       {item(<span className={`h-5 w-5 rounded border border-gray-200 ${CLASE_TURNO.L}`} />, 'Libre')}
       {item(<span className="h-3 w-3 rounded-full bg-pendiente" />, 'Pendiente')}
       {item(<span className="font-bold">⇄</span>, 'Cambio confirmado')}
+      {item(<span>✎</span>, 'Editado a mano')}
     </ul>
   );
 }

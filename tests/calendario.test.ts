@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calcularDia, calcularDias, fechasDelMes, semanasDelMes, turnosBase, type ConfigCalendario } from '../src/domain/calendario';
+import { ajustesParaDia, calcularDia, calcularDias, fechasDelMes, semanasDelMes, turnosBase, type ConfigCalendario } from '../src/domain/calendario';
 import { sumarDias } from '../src/domain/fechas';
 import type { CambioTurno } from '../src/domain/tipos';
 
@@ -151,5 +151,48 @@ describe('superposición de cambios', () => {
   it('cambios ajenos se ignoran', () => {
     const c = [cambio({ solicitante_id: 'otra', cobertura_id: 'otra2' })];
     expect(calcularDia('2026-12-01', [calAna], c, ANA).turnos).toEqual(['D']);
+  });
+});
+
+describe('ajustes manuales', () => {
+  it('agregar un 24 h en un día libre', () => {
+    const aj = [
+      { fecha: '2026-12-03', tipo: 'D' as const, accion: 'agregar' as const },
+      { fecha: '2026-12-03', tipo: 'N' as const, accion: 'agregar' as const },
+    ];
+    const d = calcularDia('2026-12-03', [calAna], [], ANA, aj);
+    expect(d.base).toEqual([]);
+    expect(d.turnos).toEqual(['D', 'N']);
+    expect(d.propios).toEqual(['D', 'N']);
+    expect(d.editado).toBe(true);
+  });
+
+  it('quitar un turno del patrón', () => {
+    const d = calcularDia('2026-12-01', [calAna], [], ANA, [{ fecha: '2026-12-01', tipo: 'D', accion: 'quitar' }]);
+    expect(d.turnos).toEqual([]);
+    expect(d.editado).toBe(true);
+  });
+
+  it('los cambios confirmados se aplican encima de los ajustes', () => {
+    // Ana agrega N el 1 (queda D+N) y cede la D confirmada a Beto: queda solo N.
+    const d = calcularDia('2026-12-01', [calAna], [cambio({})], ANA, [{ fecha: '2026-12-01', tipo: 'N', accion: 'agregar' }]);
+    expect(d.propios).toEqual(['D', 'N']);
+    expect(d.turnos).toEqual(['N']);
+  });
+
+  it('ajustesParaDia calcula la diferencia con el patrón', () => {
+    expect(ajustesParaDia(['D'], ['D', 'N'])).toEqual([{ tipo: 'N', accion: 'agregar' }]);
+    expect(ajustesParaDia(['D'], [])).toEqual([{ tipo: 'D', accion: 'quitar' }]);
+    expect(ajustesParaDia(['N'], ['D'])).toEqual([{ tipo: 'D', accion: 'agregar' }, { tipo: 'N', accion: 'quitar' }]);
+    expect(ajustesParaDia(['D'], ['D'])).toEqual([]);
+  });
+});
+
+describe('anular un confirmado', () => {
+  it('un confirmado luego anulado ya no modifica el calendario', () => {
+    const c = [cambio({ estado: 'anulado', anulado_at: '2026-11-25T00:00:00Z' })];
+    const d = calcularDia('2026-12-01', [calAna], c, ANA);
+    expect(d.turnos).toEqual(['D']);
+    expect(d.modificado).toBe(false);
   });
 });

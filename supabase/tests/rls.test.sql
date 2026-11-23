@@ -4,7 +4,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(27);
+select plan(32);
 
 -- Usuarios sintéticos ------------------------------------------------------
 insert into auth.users (id, instance_id, aud, role, email, raw_user_meta_data, created_at, updated_at)
@@ -117,6 +117,20 @@ select is((select sistema from calendarios), 'cuarto', 'el update de B no alter�
 select pg_temp.como('00000000-0000-4000-a000-00000000000a');
 select lives_ok($$ select confirmar_cambio((select id from cambios_turno limit 1)) $$,
   'A (solicitante) confirma su cambio');
+
+select lives_ok($ select anular_cambio((select id from cambios_turno limit 1)) $,
+  'A puede anular un cambio ya confirmado');
+select is((select estado || '|' || (confirmado_at is not null)::text || '|' || (anulado_at is not null)::text from cambios_turno limit 1),
+  'anulado|true|true', 'el anulado conserva la fecha de confirmación (historial)');
+
+-- Ajustes manuales del calendario
+select lives_ok($ select guardar_ajustes_dia('2026-12-10', '[{"tipo":"D","accion":"agregar"},{"tipo":"N","accion":"agregar"}]') $,
+  'A agrega un 24 h manual');
+select pg_temp.como('00000000-0000-4000-a000-00000000000b');
+select is((select count(*)::int from ajustes_calendario), 0, 'B no ve los ajustes de A');
+select throws_ok($ insert into ajustes_calendario (usuario_id, fecha, tipo, accion)
+                    values ('00000000-0000-4000-a000-00000000000a', '2026-12-11', 'D', 'agregar') $,
+  '42501', null, 'no se insertan ajustes directamente (solo por RPC, y siempre para uno mismo)');
 
 select * from finish();
 rollback;

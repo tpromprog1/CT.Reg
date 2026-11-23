@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { cargarCalendarios, cargarCambios, cargarPerfil } from '../api/datos';
-import { calcularDias, fechasDelMesConBordes } from '../domain/calendario';
+import { cargarAjustes, cargarCalendarios, cargarCambios, cargarPerfil } from '../api/datos';
+import { calcularDias, fechasDelMesConBordes, type AjusteCalendario } from '../domain/calendario';
 import type { FechaISO } from '../domain/fechas';
 import type { CambioTurno, Calendario, Perfil } from '../domain/tipos';
 import { mensajeError } from '../lib/errores';
@@ -11,16 +11,22 @@ interface Estado {
   perfil: Perfil | null;
   calendarios: Calendario[];
   cambios: CambioTurno[];
+  ajustes: AjusteCalendario[];
 }
 
 export function useDatosUsuario(uid: string) {
-  const [estado, setEstado] = useState<Estado>({ cargando: true, error: null, perfil: null, calendarios: [], cambios: [] });
+  const [estado, setEstado] = useState<Estado>({ cargando: true, error: null, perfil: null, calendarios: [], cambios: [], ajustes: [] });
 
   const recargar = useCallback(async () => {
     setEstado((e) => ({ ...e, cargando: true, error: null }));
     try {
-      const [perfil, calendarios, cambios] = await Promise.all([cargarPerfil(uid), cargarCalendarios(), cargarCambios()]);
-      setEstado({ cargando: false, error: null, perfil, calendarios, cambios });
+      const [perfil, calendarios, cambios, ajustes] = await Promise.all([
+        cargarPerfil(uid),
+        cargarCalendarios(),
+        cargarCambios(),
+        cargarAjustes(),
+      ]);
+      setEstado({ cargando: false, error: null, perfil, calendarios, cambios, ajustes });
     } catch (e) {
       setEstado((s) => ({ ...s, cargando: false, error: mensajeError(e) }));
     }
@@ -36,21 +42,33 @@ export function useDatosUsuario(uid: string) {
 }
 
 /** Días calculados (base + confirmados) de un mes, con un día extra en cada borde. */
-export function useDiasMes(anio: number, mes: number, calendarios: Calendario[], cambios: CambioTurno[], uid: string) {
+export function useDiasMes(
+  anio: number,
+  mes: number,
+  calendarios: Calendario[],
+  cambios: CambioTurno[],
+  uid: string,
+  ajustes: AjusteCalendario[],
+) {
   return useMemo(
-    () => calcularDias(fechasDelMesConBordes(anio, mes), calendarios, cambios, uid),
-    [anio, mes, calendarios, cambios, uid],
+    () => calcularDias(fechasDelMesConBordes(anio, mes), calendarios, cambios, uid, ajustes),
+    [anio, mes, calendarios, cambios, uid, ajustes],
   );
 }
 
 /** Buscador de días para un rango arbitrario (con caché por mes). */
-export function crearBuscadorDias(calendarios: Calendario[], cambios: CambioTurno[], uid: string) {
+export function crearBuscadorDias(
+  calendarios: Calendario[],
+  cambios: CambioTurno[],
+  uid: string,
+  ajustes: AjusteCalendario[] = [],
+) {
   const cache = new Map<string, ReturnType<typeof calcularDias>>();
   return (fecha: FechaISO) => {
     const clave = fecha.slice(0, 7);
     let dias = cache.get(clave);
     if (!dias) {
-      dias = calcularDias(fechasDelMesConBordes(Number(clave.slice(0, 4)), Number(clave.slice(5, 7))), calendarios, cambios, uid);
+      dias = calcularDias(fechasDelMesConBordes(Number(clave.slice(0, 4)), Number(clave.slice(5, 7))), calendarios, cambios, uid, ajustes);
       cache.set(clave, dias);
     }
     return dias.get(fecha);

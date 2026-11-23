@@ -19,7 +19,7 @@ export function Home({ sesion }: { sesion: Session }) {
   const uid = sesion.user.id;
   const correoPropio = sesion.user.email ?? '';
   const datos = useDatosUsuario(uid);
-  const { perfil, calendarios, cambios } = datos;
+  const { perfil, calendarios, cambios, ajustes } = datos;
   const hoy = hoyEnChile();
   const anioActual = partes(hoy).anio;
 
@@ -52,7 +52,7 @@ export function Home({ sesion }: { sesion: Session }) {
   const mostrarConfig = perfilIncompleto || verConfig;
   const mostrarGenerador = !mostrarConfig && (verGenerador || (sinCalendarioActual && !generadorDescartado && !datos.cargando));
 
-  const dia = diaAbierto ? calcularDia(diaAbierto, calendarios, cambios, uid) : null;
+  const dia = diaAbierto ? calcularDia(diaAbierto, calendarios, cambios, uid, ajustes) : null;
 
   return (
     <div className="min-h-dvh pb-[env(safe-area-inset-bottom)]">
@@ -121,6 +121,7 @@ export function Home({ sesion }: { sesion: Session }) {
               hoy={hoy}
               calendarios={calendarios}
               cambios={cambios}
+              ajustes={ajustes}
               onTocarDia={setDiaAbierto}
               onAbrirGenerador={() => setVerGenerador(true)}
             />
@@ -171,6 +172,7 @@ export function Home({ sesion }: { sesion: Session }) {
           pendientesPropios={pendientesPropios}
           onCerrar={() => setDiaAbierto(null)}
           onCambiarTurno={(tipo) => setSolicitud({ fecha: dia.fecha, tipo })}
+          onAjustado={datos.recargar}
         />
       )}
       {solicitud && (
@@ -181,6 +183,7 @@ export function Home({ sesion }: { sesion: Session }) {
           inicial={solicitud}
           calendarios={calendarios}
           cambios={cambios}
+          ajustes={ajustes}
           hoy={hoy}
           onCerrar={() => {
             setSolicitud(null);

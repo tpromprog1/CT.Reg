@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import type { CambioTurno, Calendario, Colega, Perfil } from '../domain/tipos';
 import type { SistemaId, TipoTurno } from '../domain/patterns';
 import type { FechaISO } from '../domain/fechas';
+import type { AjusteCalendario } from '../domain/calendario';
 
 const COLUMNAS_CAMBIO =
   'id, solicitante_id, solicitante_nombre, cobertura_id, cobertura_nombre, cobertura_correo, cedido_fecha, cedido_tipo, devolucion_fecha, devolucion_tipo, estado, correo_estado, correo_enviado_at, correo_jefatura_usado, created_at, confirmado_at, anulado_at';
@@ -125,4 +126,16 @@ export async function enviarCorreoCambio(id: string): Promise<ResultadoEnvio> {
   } catch {
     return { ok: false, codigo: 'red', mensaje: 'Sin conexión. No se pudo enviar el correo.' };
   }
+}
+
+export async function cargarAjustes(): Promise<AjusteCalendario[]> {
+  const { data, error } = await supabase.from('ajustes_calendario').select('fecha, tipo, accion').order('fecha');
+  if (error) throw error;
+  return (data ?? []) as AjusteCalendario[];
+}
+
+/** Reemplaza los ajustes manuales de un día ([] = volver al patrón). */
+export async function guardarAjustesDia(fecha: FechaISO, ajustes: Omit<AjusteCalendario, 'fecha'>[]): Promise<void> {
+  const { error } = await supabase.rpc('guardar_ajustes_dia', { p_fecha: fecha, p_ajustes: ajustes });
+  if (error) throw error;
 }

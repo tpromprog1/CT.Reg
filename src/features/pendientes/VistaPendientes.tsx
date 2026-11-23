@@ -7,6 +7,7 @@ import type { CambioTurno, Perfil } from '../../domain/tipos';
 import { mensajeError } from '../../lib/errores';
 import { Dialogo } from '../../ui/Dialogo';
 import { Aviso, Boton, Cargando } from '../../ui/controles';
+import { ResumenCambios } from './ResumenCambios';
 
 interface Props {
   uid: string;
@@ -70,6 +71,8 @@ export function VistaPendientes({ uid, perfil, correoPropio, cambios, cargando, 
 
   return (
     <div className="space-y-6">
+      <ResumenCambios uid={uid} cambios={cambios} />
+
       <section aria-labelledby="t-mias" className="space-y-3">
         <h2 id="t-mias" className="text-lg font-semibold">Mis solicitudes pendientes</h2>
         {mias.length === 0 ? (
@@ -125,6 +128,7 @@ export function VistaPendientes({ uid, perfil, correoPropio, cambios, cargando, 
         <summary className="flex min-h-11 cursor-pointer items-center text-lg font-semibold">
           Historial ({historial.length})
         </summary>
+        <p className="mt-1 text-sm text-gray-600">Cambios confirmados y anulados. Puedes anular un cambio confirmado: tu calendario vuelve a como estaba y el registro se conserva.</p>
         {historial.length === 0 ? (
           <p className="mt-2 text-gray-600">Aún no hay cambios confirmados ni anulados.</p>
         ) : (
@@ -133,10 +137,18 @@ export function VistaPendientes({ uid, perfil, correoPropio, cambios, cargando, 
               <li key={c.id} className="space-y-1 py-3">
                 <Resumen c={c} rol={c.solicitante_id === uid ? 'solicitante' : 'cobertura'} />
                 <p className="text-sm text-gray-600">
-                  {c.estado === 'confirmado'
-                    ? `Confirmado el ${formatoTimestamp(c.confirmado_at ?? c.created_at)}`
-                    : `Anulado el ${formatoTimestamp(c.anulado_at ?? c.created_at)}`}
+                  {c.confirmado_at && <>Confirmado el {formatoTimestamp(c.confirmado_at)}</>}
+                  {c.confirmado_at && c.estado === 'anulado' && <br />}
+                  {c.estado === 'anulado' && (
+                    <span className="font-medium text-red-700">Anulado el {formatoTimestamp(c.anulado_at ?? c.created_at)}</span>
+                  )}
                 </p>
+                {c.estado === 'confirmado' && c.solicitante_id === uid && (
+                  <Boton variante="peligro" className="mt-1"
+                    onClick={() => { setErrorAccion(null); setAccion({ tipo: 'anular', cambio: c }); }}>
+                    Anular cambio
+                  </Boton>
+                )}
               </li>
             ))}
           </ul>
@@ -159,7 +171,9 @@ export function VistaPendientes({ uid, perfil, correoPropio, cambios, cargando, 
           <p>
             {accion.tipo === 'confirmar'
               ? '¿Jefatura ya confirmó este cambio? Se modificará tu calendario.'
-              : '¿Anular esta solicitud? No se enviará ningún correo; avisa a jefatura si ya la recibió.'}
+              : accion.cambio.estado === 'confirmado'
+                ? `¿Anular este cambio ya confirmado? Tu calendario${accion.cambio.cobertura_id ? ` y el de ${accion.cambio.cobertura_nombre}` : ''} vuelve a como estaba. Quedará en el historial como anulado. No se envía correo: avisa a jefatura.`
+                : '¿Anular esta solicitud? No se enviará ningún correo; avisa a jefatura si ya la recibió.'}
           </p>
           <div className="mt-3 text-sm"><Resumen c={accion.cambio} rol="solicitante" /></div>
           {errorAccion && <div className="mt-3"><Aviso tipo="error">{errorAccion}</Aviso></div>}

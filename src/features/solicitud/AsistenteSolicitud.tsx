@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { crearCambio, enviarCorreoCambio, listarColegas, type ResultadoEnvio } from '../../api/datos';
-import { calcularDias, fechasDelMesConBordes } from '../../domain/calendario';
+import { calcularDias, fechasDelMesConBordes, type AjusteCalendario } from '../../domain/calendario';
 import { armarCorreo, armarMailto } from '../../domain/correo';
 import { formatoLargo, partes, type FechaISO } from '../../domain/fechas';
 import { TURNOS, etiquetaTurno, type TipoTurno } from '../../domain/patterns';
 import type { CambioTurno, Calendario, Colega, Perfil, TurnoEnFecha } from '../../domain/tipos';
-import { errorTurnoPorCubrir, tiposCedibles, validarDevolucion } from '../../domain/validaciones';
+import { errorTurnoPorCubrir, validarDevolucion } from '../../domain/validaciones';
 import {
   LARGO_MAX_CORREO,
   LARGO_MAX_NOMBRE,
@@ -24,28 +24,30 @@ interface Props {
   uid: string;
   perfil: Perfil;
   correoPropio: string;
+  /** Turno que se cede: el día que se tocó en el calendario (fijo). */
   inicial: TurnoEnFecha;
   calendarios: Calendario[];
   cambios: CambioTurno[];
+  ajustes: AjusteCalendario[];
   hoy: FechaISO;
   onCerrar: () => void;
   onCreada: () => void;
 }
 
-type Paso = 1 | 2 | 3 | 'resultado';
+/** 1: a quién (cobertura) · 2: cuándo (turno que cubrirás en devolución). */
+type Paso = 1 | 2 | 'resultado';
 const OTRA = '__otra__';
 
-export function AsistenteSolicitud({ uid, perfil, correoPropio, inicial, calendarios, cambios, hoy, onCerrar, onCreada }: Props) {
+export function AsistenteSolicitud({ uid, perfil, correoPropio, inicial, calendarios, cambios, ajustes, hoy, onCerrar, onCreada }: Props) {
   const [paso, setPaso] = useState<Paso>(1);
+  const cedido = inicial;
 
-  // Borrador (se conserva al ir y volver entre ventanas)
+  // Borrador (se conserva al ir y volver)
   const [coberturaSel, setCoberturaSel] = useState<string>('');
   const [otraNombre, setOtraNombre] = useState('');
   const [otraCorreo, setOtraCorreo] = useState('');
-  const [cedido, setCedido] = useState<TurnoEnFecha>(inicial);
   const [devolucion, setDevolucion] = useState<{ fecha: FechaISO | null; tipo: TipoTurno }>({ fecha: null, tipo: inicial.tipo });
 
-  // Colegas
   const [colegas, setColegas] = useState<Colega[] | null>(null);
   const [errorColegas, setErrorColegas] = useState<string | null>(null);
   useEffect(() => {
@@ -58,9 +60,10 @@ export function AsistenteSolicitud({ uid, perfil, correoPropio, inicial, calenda
     () => cambios.filter((c) => c.solicitante_id === uid && c.estado === 'pendiente'),
     [cambios, uid],
   );
-  const buscarDia = useMemo(() => crearBuscadorDias(calendarios, cambios, uid), [calendarios, cambios, uid]);
+  const buscarDia = useMemo(() => crearBuscadorDias(calendarios, cambios, uid, ajustes), [calendarios, cambios, uid, ajustes]);
+  const errorCedido = errorTurnoPorCubrir(cedido, buscarDia, pendientesPropios);
 
-  // ----- Ventana 1: cobertura -----
+  // ----- Paso 1: a quién -----
   const [erroresCob, setErroresCob] = useState<{ sel?: string | null; nombre?: string | null; correo?: string | null }>({});
   const esOtra = coberturaSel === OTRA;
   const colegaSel = colegas?.find((c) => c.id === coberturaSel);
@@ -82,55 +85,20 @@ export function AsistenteSolicitud({ uid, perfil, correoPropio, inicial, calenda
     return !Object.values(errs).some(Boolean);
   }
 
-  // ----- Ventana 2: turno por cubrir -----
-  const [mes2, setMes2] = useState(() => ({ anio: partes(inicial.fecha).anio, mes: partes(inicial.fecha).mes }));
-  const [cedidoTmp, setCedidoTmp] = useState<TurnoEnFecha>(inicial);
-  const [error2, setError2] = useState<string | null>(null);
-  const dias2 = useMemo(
-    () => calcularDias(fechasDelMesConBordes(mes2.anio, mes2.mes), calendarios, cambios, uid),
-    [mes2, calendarios, cambios, uid],
-  );
-  const aniosGenerados = calendarios.map((c) => c.anio);
-  const idx2 = mes2.anio * 12 + mes2.mes - 1;
-  const minIdx = Math.min(...aniosGenerados) * 12;
-  const maxIdx = Math.max(...aniosGenerados) * 12 + 11;
-  const moverMes2 = (d: number) => {
-    const i = Math.min(Math.max(idx2 + d, minIdx), maxIdx);
-    setMes2({ anio: Math.floor(i / 12), mes: (i % 12) + 1 });
-  };
-  const cediblesEn = (f: FechaISO) => tiposCedibles(buscarDia(f), pendientesPropios);
-
-  function elegirFecha2(f: FechaISO) {
-    const tipos = cediblesEn(f);
-    setCedidoTmp({ fecha: f, tipo: tipos.includes(cedidoTmp.tipo) ? cedidoTmp.tipo : (tipos[0] ?? cedidoTmp.tipo) });
-    setError2(null);
-  }
-
-  function confirmar2() {
-    const err = errorTurnoPorCubrir(cedidoTmp, buscarDia, pendientesPropios);
-    setError2(err);
-    if (err) return;
-    if (devolucion.fecha && devolucion.fecha.slice(0, 7) !== cedidoTmp.fecha.slice(0, 7)) {
-      setDevolucion((d) => ({ ...d, fecha: null }));
-    }
-    setCedido(cedidoTmp);
-    setPaso(3);
-  }
-
-  // ----- Ventana 3: turno que cubrirá -----
-  const mes3 = { anio: partes(cedido.fecha).anio, mes: partes(cedido.fecha).mes };
-  const dias3 = useMemo(
-    () => calcularDias(fechasDelMesConBordes(mes3.anio, mes3.mes), calendarios, cambios, uid),
-    [mes3.anio, mes3.mes, calendarios, cambios, uid],
+  // ----- Paso 2: cuándo -----
+  const mes = { anio: partes(cedido.fecha).anio, mes: partes(cedido.fecha).mes };
+  const dias = useMemo(
+    () => calcularDias(fechasDelMesConBordes(mes.anio, mes.mes), calendarios, cambios, uid, ajustes),
+    [mes.anio, mes.mes, calendarios, cambios, uid, ajustes],
   );
   const devolucionSel: TurnoEnFecha | null = devolucion.fecha ? { fecha: devolucion.fecha, tipo: devolucion.tipo } : null;
-  const validacion3 = validarDevolucion(cedido, devolucionSel, buscarDia, hoy);
+  const validacion = validarDevolucion(cedido, devolucionSel, buscarDia, hoy);
   const tiposQueTengo = devolucion.fecha ? (buscarDia(devolucion.fecha)?.turnos ?? []) : [];
 
-  function elegirFecha3(f: FechaISO) {
+  function elegirFecha(f: FechaISO) {
     const tengo = buscarDia(f)?.turnos ?? [];
-    const libre = (['D', 'N'] as const).filter((t) => !tengo.includes(t));
-    setDevolucion((d) => ({ fecha: f, tipo: libre.includes(d.tipo as 'D' | 'N') ? d.tipo : (libre[0] ?? d.tipo) }));
+    const libres = (['D', 'N'] as const).filter((t) => !tengo.includes(t));
+    setDevolucion((d) => ({ fecha: f, tipo: libres.includes(d.tipo as 'D' | 'N') ? d.tipo : (libres[0] ?? d.tipo) }));
   }
 
   // ----- Envío -----
@@ -141,7 +109,7 @@ export function AsistenteSolicitud({ uid, perfil, correoPropio, inicial, calenda
   const [reintentando, setReintentando] = useState(false);
 
   async function confirmarFinal() {
-    if (!devolucionSel || validacion3.errores.length > 0) return;
+    if (!devolucionSel || validacion.errores.length > 0 || errorCedido) return;
     setEnviando(true);
     setErrorEnvio(null);
     try {
@@ -155,8 +123,7 @@ export function AsistenteSolicitud({ uid, perfil, correoPropio, inicial, calenda
       });
       setCreado(cambio);
       onCreada();
-      const r = await enviarCorreoCambio(cambio.id);
-      setResultado(r);
+      setResultado(await enviarCorreoCambio(cambio.id));
       onCreada();
       setPaso('resultado');
     } catch (e) {
@@ -169,8 +136,7 @@ export function AsistenteSolicitud({ uid, perfil, correoPropio, inicial, calenda
   async function reintentar() {
     if (!creado) return;
     setReintentando(true);
-    const r = await enviarCorreoCambio(creado.id);
-    setResultado(r);
+    setResultado(await enviarCorreoCambio(creado.id));
     setReintentando(false);
     onCreada();
   }
@@ -224,18 +190,27 @@ export function AsistenteSolicitud({ uid, perfil, correoPropio, inicial, calenda
     );
   }
 
+  const tarjetaTurno = (
+    <div className="rounded-xl border border-gray-200 p-3">
+      <p className="text-sm text-gray-600">Turno que te cubrirán</p>
+      <p className="font-medium">{resumenCedido}</p>
+    </div>
+  );
+
   if (paso === 1) {
     return (
       <Dialogo titulo="Cambiar turno" onCerrar={onCerrar}
         pie={
-          <Boton className="w-full" onClick={() => validarCobertura() && setPaso(2)}>
-            Seleccionar fechas
+          <Boton className="w-full" disabled={!!errorCedido} onClick={() => validarCobertura() && setPaso(2)}>
+            Siguiente: ¿cuándo lo devuelves?
           </Boton>
         }>
         <div className="space-y-4">
+          {tarjetaTurno}
+          {errorCedido && <Aviso tipo="error">{errorCedido}</Aviso>}
           <Campo etiqueta="Solicitante" value={perfil.nombre ?? ''} readOnly />
           <div className="space-y-1">
-            <label htmlFor="cobertura" className="block text-sm font-medium text-gray-800">Cobertura</label>
+            <label htmlFor="cobertura" className="block text-sm font-medium text-gray-800">¿Quién te cubrirá?</label>
             {colegas === null && !errorColegas ? (
               <div className="flex items-center gap-2 py-2 text-gray-600"><Spinner /> Cargando colegas…</div>
             ) : (
@@ -267,76 +242,35 @@ export function AsistenteSolicitud({ uid, perfil, correoPropio, inicial, calenda
                 ayuda="Recibirá el correo en copia." />
             </div>
           )}
-          <div className="rounded-xl border border-gray-200 p-3">
-            <p className="text-sm text-gray-600">Turno por cubrir</p>
-            <p className="font-medium">{resumenCedido}</p>
-          </div>
         </div>
       </Dialogo>
     );
   }
 
-  if (paso === 2) {
-    const tiposDisponibles = cediblesEn(cedidoTmp.fecha);
-    return (
-      <Dialogo titulo="Seleccione su turno por cubrir" onCerrar={onCerrar} onVolver={() => setPaso(1)}
-        pie={<Boton className="w-full" onClick={confirmar2}>Confirmar</Boton>}>
-        <div className="space-y-4">
-          <GrillaMes
-            anio={mes2.anio}
-            mes={mes2.mes}
-            dias={dias2}
-            hoy={hoy}
-            compacta
-            seleccion={cedidoTmp.fecha}
-            onSeleccionar={elegirFecha2}
-            habilitada={(f) => cediblesEn(f).length > 0}
-            onMesAnterior={idx2 > minIdx ? () => moverMes2(-1) : undefined}
-            onMesSiguiente={idx2 < maxIdx ? () => moverMes2(1) : undefined}
-          />
-          <p className="text-sm text-gray-600">Solo puedes elegir días y turnos que tienes.</p>
-          <Segmentado<TipoTurno>
-            etiqueta="Tipo de turno por cubrir"
-            valor={cedidoTmp.tipo}
-            onCambio={(t) => { setCedidoTmp((c) => ({ ...c, tipo: t })); setError2(null); }}
-            opciones={(['D', 'N'] as const).map((t) => ({
-              valor: t,
-              texto: TURNOS[t].nombre,
-              ...CLASE_BOTON_TURNO[t],
-              deshabilitado: !tiposDisponibles.includes(t),
-            }))}
-          />
-          <p className="font-medium">{formatoLargo(cedidoTmp.fecha)} · {etiquetaTurno(cedidoTmp.tipo)}</p>
-          {error2 && <Aviso tipo="error">{error2}</Aviso>}
-        </div>
-      </Dialogo>
-    );
-  }
-
-  // paso 3
+  // Paso 2: cuándo
   return (
-    <Dialogo titulo="Seleccione el turno que cubrirá" onCerrar={onCerrar} onVolver={() => setPaso(2)}
+    <Dialogo titulo="¿Cuándo devuelves el turno?" onCerrar={onCerrar} onVolver={() => setPaso(1)}
       pie={
-        <Boton className="w-full" disabled={!devolucionSel || validacion3.errores.length > 0} cargando={enviando}
+        <Boton className="w-full" disabled={!devolucionSel || validacion.errores.length > 0} cargando={enviando}
           onClick={confirmarFinal}>
-          Confirmar
+          Confirmar y enviar
         </Boton>
       }>
       <div className="space-y-4">
+        <p className="text-sm text-gray-700">
+          Elige el turno de <strong>{nombreCobertura}</strong> que cubrirás tú (del mismo mes). Los colores muestran tus turnos.
+        </p>
         <GrillaMes
-          anio={mes3.anio}
-          mes={mes3.mes}
-          dias={dias3}
+          anio={mes.anio}
+          mes={mes.mes}
+          dias={dias}
           hoy={hoy}
           compacta
           seleccion={devolucion.fecha}
-          onSeleccionar={elegirFecha3}
+          onSeleccionar={elegirFecha}
         />
-        <p className="text-sm text-gray-600">
-          Los colores muestran tus turnos. Elige el turno de {nombreCobertura} que cubrirás (mismo mes).
-        </p>
         <Segmentado<TipoTurno>
-          etiqueta="Tipo de turno que cubrirá"
+          etiqueta="Tipo de turno que cubrirás"
           valor={devolucion.tipo}
           onCambio={(t) => setDevolucion((d) => ({ ...d, tipo: t }))}
           opciones={(['D', 'N'] as const).map((t) => ({
@@ -346,20 +280,18 @@ export function AsistenteSolicitud({ uid, perfil, correoPropio, inicial, calenda
             deshabilitado: tiposQueTengo.includes(t),
           }))}
         />
-        {devolucionSel && validacion3.errores.map((e) => <Aviso key={e} tipo="error">{e}</Aviso>)}
-        {validacion3.advertencias.map((a) => <Aviso key={a} tipo="advertencia">{a}</Aviso>)}
+        {devolucionSel && validacion.errores.map((e) => <Aviso key={e} tipo="error">{e}</Aviso>)}
+        {validacion.advertencias.map((a) => <Aviso key={a} tipo="advertencia">{a}</Aviso>)}
 
         <section aria-label="Resumen del intercambio" className="space-y-2 rounded-xl border border-gray-200 p-3 text-sm">
           <h3 className="font-semibold">Resumen</h3>
-          <p><span className="text-gray-600">Solicitante:</span> {perfil.nombre}</p>
-          <p><span className="text-gray-600">Cobertura:</span> {nombreCobertura}</p>
           <p>
-            <span className="text-gray-600">{nombreCobertura} cubrirá tu turno:</span><br />
+            <span className="text-gray-600">{nombreCobertura} cubre tu turno:</span><br />
             <strong>{resumenCedido}</strong>
           </p>
           <p>
-            <span className="text-gray-600">Tú cubrirás en devolución:</span><br />
-            <strong>{devolucionSel ? `${formatoLargo(devolucionSel.fecha)} · ${etiquetaTurno(devolucionSel.tipo)}` : '—'}</strong>
+            <span className="text-gray-600">Tú cubres a {nombreCobertura}:</span><br />
+            <strong>{devolucionSel ? `${formatoLargo(devolucionSel.fecha)} · ${etiquetaTurno(devolucionSel.tipo)}` : '— elige un día —'}</strong>
           </p>
           <p className="text-gray-600">Se enviará un correo a jefatura con copia a ti y a la cobertura.</p>
         </section>

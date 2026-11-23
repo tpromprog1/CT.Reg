@@ -1,6 +1,7 @@
 import { useRef, useState, type TouchEvent } from 'react';
 import { partes, type FechaISO } from '../../domain/fechas';
 import type { CambioTurno, Calendario } from '../../domain/tipos';
+import type { AjusteCalendario } from '../../domain/calendario';
 import { Boton } from '../../ui/controles';
 import { useDiasMes } from '../useDatosUsuario';
 import { Leyenda } from './CeldaDia';
@@ -11,6 +12,7 @@ interface Props {
   hoy: FechaISO;
   calendarios: Calendario[];
   cambios: CambioTurno[];
+  ajustes: AjusteCalendario[];
   onTocarDia: (f: FechaISO) => void;
   onAbrirGenerador: () => void;
 }
@@ -19,7 +21,7 @@ type Mes = { anio: number; mes: number };
 const indice = (m: Mes) => m.anio * 12 + (m.mes - 1);
 const desdeIndice = (i: number): Mes => ({ anio: Math.floor(i / 12), mes: (i % 12) + 1 });
 
-export function VistaCalendario({ uid, hoy, calendarios, cambios, onTocarDia, onAbrirGenerador }: Props) {
+export function VistaCalendario({ uid, hoy, calendarios, cambios, ajustes, onTocarDia, onAbrirGenerador }: Props) {
   const anios = calendarios.map((c) => c.anio);
   const hoyP = partes(hoy);
   const minIdx = Math.min(...anios) * 12;
@@ -29,7 +31,7 @@ export function VistaCalendario({ uid, hoy, calendarios, cambios, onTocarDia, on
 
   const [idx, setIdx] = useState(() => (hoyEnRango ? idxHoy : minIdx));
   const actual = desdeIndice(Math.min(Math.max(idx, minIdx), maxIdx));
-  const dias = useDiasMes(actual.anio, actual.mes, calendarios, cambios, uid);
+  const dias = useDiasMes(actual.anio, actual.mes, calendarios, cambios, uid, ajustes);
   const tieneAnio = anios.includes(actual.anio);
 
   const mover = (d: number) => setIdx((i) => Math.min(Math.max(i + d, minIdx), maxIdx));

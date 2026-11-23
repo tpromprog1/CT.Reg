@@ -1,4 +1,4 @@
-// calendario(fecha) = patrón base del año + superposición de los cambios CONFIRMADOS.
+// calendario(fecha) = patrón base del año + ajustes manuales + cambios CONFIRMADOS.
 // Nada de esto se guarda: se calcula en el cliente a partir de la configuración.
 
 import {
@@ -42,9 +42,21 @@ export interface EventoDia {
   soySolicitante?: boolean;
 }
 
+/** Ajuste manual de un día (agregar o quitar un turno sin pasar por una solicitud). */
+export interface AjusteCalendario {
+  fecha: FechaISO;
+  tipo: TipoTurno;
+  accion: 'agregar' | 'quitar';
+}
+
 export interface DiaCalendario {
   fecha: FechaISO;
+  /** Turnos del patrón del sistema. */
   base: TipoTurno[];
+  /** Turnos del patrón + ajustes manuales (antes de aplicar cambios confirmados). */
+  propios: TipoTurno[];
+  /** El día tiene ajustes manuales. */
+  editado: boolean;
   turnos: TipoTurno[];
   eventos: EventoDia[];
   /** Hay una solicitud pendiente que involucra esta fecha. */
@@ -74,12 +86,25 @@ export function calcularDias(
   calendarios: ConfigCalendario[],
   cambios: CambioMinimo[],
   usuarioId: string,
+  ajustes: AjusteCalendario[] = [],
 ): Map<FechaISO, DiaCalendario> {
   const mapa = new Map<FechaISO, DiaCalendario & { set: Set<TipoTurno> }>();
   for (const fecha of fechas) {
     const base = turnosBase(configDelAnio(calendarios, partes(fecha).anio), fecha);
-    mapa.set(fecha, { fecha, base, turnos: [], set: new Set(base), eventos: [], pendiente: false, modificado: false });
+    mapa.set(fecha, {
+      fecha, base, propios: [], editado: false, turnos: [], set: new Set(base), eventos: [], pendiente: false, modificado: false,
+    });
   }
+
+  // Ajustes manuales: se aplican sobre el patrón, antes de los cambios.
+  for (const a of ajustes) {
+    const dia = mapa.get(a.fecha);
+    if (!dia) continue;
+    if (a.accion === 'agregar') dia.set.add(a.tipo);
+    else dia.set.delete(a.tipo);
+    dia.editado = true;
+  }
+  for (const dia of mapa.values()) dia.propios = ordenar(dia.set);
 
   const confirmados = cambios
     .filter((c) => c.estado === 'confirmado')
@@ -145,8 +170,24 @@ export function calcularDia(
   calendarios: ConfigCalendario[],
   cambios: CambioMinimo[],
   usuarioId: string,
+  ajustes: AjusteCalendario[] = [],
 ): DiaCalendario {
-  return calcularDias([fecha], calendarios, cambios, usuarioId).get(fecha)!;
+  return calcularDias([fecha], calendarios, cambios, usuarioId, ajustes).get(fecha)!;
+}
+
+/**
+ * Ajustes necesarios para que un día quede con los turnos "deseados" (patrón + ajustes).
+ * Si lo deseado coincide con el patrón, no hay ajustes.
+ */
+export function ajustesParaDia(base: TipoTurno[], deseados: TipoTurno[]): Omit<AjusteCalendario, 'fecha'>[] {
+  const res: Omit<AjusteCalendario, 'fecha'>[] = [];
+  for (const tipo of ORDEN) {
+    const enBase = base.includes(tipo);
+    const quiero = deseados.includes(tipo);
+    if (quiero && !enBase) res.push({ tipo, accion: 'agregar' });
+    if (!quiero && enBase) res.push({ tipo, accion: 'quitar' });
+  }
+  return res;
 }
 
 /** Fechas del mes, en orden. */
