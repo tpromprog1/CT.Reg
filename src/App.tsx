@@ -38,7 +38,7 @@ export function App() {
       <NuevaContrasena
         onListo={() => {
           setRecuperando(false);
-          window.history.replaceState(null, '', '/');
+          window.history.replaceState(null, '', import.meta.env.BASE_URL);
         }}
       />
     );

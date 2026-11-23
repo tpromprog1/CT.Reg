@@ -101,16 +101,16 @@ npm run build
    npx supabase functions deploy enviar-cambio-turno
    npx supabase secrets set RESEND_API_KEY=re_xxx \
      MAIL_FROM="Cambios de Turno <turnos@tu-dominio.cl>" \
-     ALLOWED_ORIGIN=https://tu-app.vercel.app
+     ALLOWED_ORIGIN=https://tu-usuario.github.io
    ```
 
    `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` los inyecta Supabase automáticamente.
-   La service role key **solo** vive ahí; nunca en el frontend ni en Vercel.
+   La service role key **solo** vive ahí; nunca en el frontend ni en las variables de GitHub.
 
 ### 2. Auth (Dashboard → Authentication)
 
-- **URL Configuration → Site URL**: `https://tu-app.vercel.app`
-- **Redirect URLs**: `https://tu-app.vercel.app/**` (y `http://localhost:5173/**` para desarrollo).
+- **URL Configuration → Site URL**: `https://tu-usuario.github.io/CT.Reg/`
+- **Redirect URLs**: `https://tu-usuario.github.io/CT.Reg/**` (y `http://localhost:5173/**` para desarrollo).
 - **Providers → Email**: deja activado *Confirm email*. Largo mínimo de contraseña: 8.
 - **SMTP**: el SMTP integrado de Supabase tiene un límite muy bajo y es solo para pruebas.
   Para producción configura un SMTP propio (Authentication → Emails → SMTP Settings); puedes
@@ -128,15 +128,23 @@ Si prefieres que solo jefatura o un administrador cree las cuentas:
 
 La pantalla «Crear cuenta» mostrará un aviso si el registro está desactivado.
 
-### 3. Vercel
+### 3. GitHub Pages
 
-1. Importa el repositorio de GitHub en Vercel (framework: Vite; build `npm run build`; output `dist`).
-2. Variables de entorno (Production y Preview):
+El workflow `.github/workflows/deploy.yml` corre lint, typecheck y pruebas, compila con la
+subruta `/<repositorio>/` y publica en `https://<usuario>.github.io/<repositorio>/` en cada push a `main`.
+
+1. En el repositorio: **Settings → Pages → Source: GitHub Actions**.
+2. **Settings → Secrets and variables → Actions → Variables** (son valores públicos):
    - `VITE_SUPABASE_URL` = `https://TU_PROJECT_REF.supabase.co`
    - `VITE_SUPABASE_ANON_KEY` = anon key (o la *publishable key*) del proyecto
-3. Despliega y agrega el dominio final en *Site URL*, *Redirect URLs* y `ALLOWED_ORIGIN`.
+3. Ejecuta el workflow (pestaña Actions → *Desplegar en GitHub Pages* → Run workflow) o haz push a `main`.
+4. En Supabase usa:
+   - *Site URL*: `https://<usuario>.github.io/<repositorio>/`
+   - *Redirect URLs*: `https://<usuario>.github.io/<repositorio>/**`
+   - Secreto `ALLOWED_ORIGIN=https://<usuario>.github.io` (el origen, sin la subruta).
 
-`vercel.json` redirige las rutas a `index.html` y agrega cabeceras de seguridad básicas.
+GitHub Pages no permite cabeceras HTTP propias: la Content-Security-Policy va como `<meta>`
+(se inyecta en el build desde `vite.config.ts`).
 
 ### 4. Resend
 

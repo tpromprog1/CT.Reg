@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, urlApp } from '../lib/supabase';
 import { Aviso, Boton, Campo } from '../ui/controles';
 import {
   LARGO_MAX_CORREO,
@@ -89,7 +89,7 @@ function Registro({ onModo }: { onModo: (m: Modo) => void }) {
     const { error } = await supabase.auth.signUp({
       email: normalizarCorreo(correo),
       password,
-      options: { data: { nombre: nombre.trim() }, emailRedirectTo: window.location.origin },
+      options: { data: { nombre: nombre.trim() }, emailRedirectTo: urlApp() },
     });
     setCargando(false);
     if (error) setError(mensajeError(error));
@@ -138,7 +138,7 @@ function Recuperar({ onModo }: { onModo: (m: Modo) => void }) {
     if (err) return;
     setCargando(true);
     const { error } = await supabase.auth.resetPasswordForEmail(normalizarCorreo(correo), {
-      redirectTo: `${window.location.origin}/?recuperar=1`,
+      redirectTo: urlApp('?recuperar=1'),
     });
     setCargando(false);
     if (error) setError(mensajeError(error));
