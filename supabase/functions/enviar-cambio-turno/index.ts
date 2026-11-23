@@ -8,6 +8,11 @@ import { crearProveedorResend, crearProveedorSimulado } from './mail/resend.ts';
 
 const env = (k: string) => Deno.env.get(k) ?? '';
 
+/** Error de base de datos con solo su código (sin datos personales en logs). */
+function errorBd(error: { code?: string } | null): never {
+  throw new Error(`bd:${error?.code ?? 'desconocido'}`);
+}
+
 const SUPABASE_URL = env('SUPABASE_URL');
 const admin = createClient(SUPABASE_URL, env('SUPABASE_SERVICE_ROLE_KEY'), {
   auth: { persistSession: false, autoRefreshToken: false },
@@ -28,16 +33,18 @@ Deno.serve((req) =>
     },
 
     async cargarCambio(id) {
-      const { data } = await admin
+      const { data, error } = await admin
         .from('cambios_turno')
         .select('id, solicitante_id, solicitante_nombre, cobertura_id, cobertura_nombre, cobertura_correo, cedido_fecha, cedido_tipo, devolucion_fecha, devolucion_tipo, estado, correo_estado, created_at')
         .eq('id', id)
         .maybeSingle();
+      if (error) errorBd(error);
       return (data as CambioServidor | null) ?? null;
     },
 
     async cargarCorreoJefatura(usuarioId) {
-      const { data } = await admin.from('perfiles').select('correo_jefatura').eq('id', usuarioId).maybeSingle();
+      const { data, error } = await admin.from('perfiles').select('correo_jefatura').eq('id', usuarioId).maybeSingle();
+      if (error) errorBd(error);
       return (data?.correo_jefatura as string | null) ?? null;
     },
 
@@ -48,16 +55,17 @@ Deno.serve((req) =>
 
     async contarEnviosUltimaHora(usuarioId) {
       const desde = new Date(Date.now() - 3_600_000).toISOString();
-      const { count } = await admin
+      const { count, error } = await admin
         .from('cambios_turno')
         .select('id', { count: 'exact', head: true })
         .eq('solicitante_id', usuarioId)
         .gte('correo_enviado_at', desde);
+      if (error) errorBd(error);
       return count ?? 0;
     },
 
     async marcarCorreo(id, { estado, jefatura }) {
-      await admin
+      const { error } = await admin
         .from('cambios_turno')
         .update({
           correo_estado: estado,
@@ -65,6 +73,7 @@ Deno.serve((req) =>
           ...(estado === 'enviado' ? { correo_enviado_at: new Date().toISOString() } : {}),
         })
         .eq('id', id);
+      if (error) errorBd(error);
     },
 
     // Logs sin datos personales: solo el id del cambio y el resultado.

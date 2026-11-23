@@ -102,6 +102,7 @@ const MENSAJES_ENVIO: Record<string, string> = {
   no_autenticado: 'Tu sesión no es válida. Cierra sesión y vuelve a entrar.',
   no_encontrado: 'No se encontró la solicitud.',
   servicio: 'No se pudo contactar el servicio de correo.',
+  error_interno: 'Error interno del servicio de correo.',
 };
 
 /** Invoca la Edge Function. Nunca lanza: devuelve un resultado para la UI. */
@@ -113,8 +114,12 @@ export async function enviarCorreoCambio(id: string): Promise<ResultadoEnvio> {
     let codigo = 'servicio';
     if (error instanceof FunctionsHttpError) {
       const res = error.context as Response;
-      const cuerpo = (await res.json().catch(() => null)) as { codigo?: string } | null;
+      const cuerpo = (await res.json().catch(() => null)) as { codigo?: string; detalle?: string } | null;
       codigo = cuerpo?.codigo ?? (res.status === 401 ? 'no_autenticado' : codigo);
+      // Código técnico corto (p. ej. "bd:42501") para poder diagnosticar.
+      if (cuerpo?.detalle) {
+        return { ok: false, codigo, mensaje: `${MENSAJES_ENVIO[codigo] ?? 'No se pudo enviar el correo.'} (${cuerpo.detalle})` };
+      }
     }
     return { ok: false, codigo, mensaje: MENSAJES_ENVIO[codigo] ?? 'No se pudo enviar el correo.' };
   } catch {

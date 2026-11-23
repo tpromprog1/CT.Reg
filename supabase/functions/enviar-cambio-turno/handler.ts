@@ -51,6 +51,20 @@ function cabecerasCors(origen: string): Record<string, string> {
 }
 
 export async function manejar(req: Request, deps: Dependencias): Promise<Response> {
+  try {
+    return await manejarSolicitud(req, deps);
+  } catch (e) {
+    // Solo el código del error (p. ej. "bd:42501"); nunca datos personales.
+    const codigo = e instanceof Error && /^bd:[\w-]+$/.test(e.message) ? e.message : 'excepcion';
+    deps.log({ cambio_id: null, resultado: `error_interno:${codigo}` });
+    return new Response(JSON.stringify({ ok: false, codigo: 'error_interno', detalle: codigo }), {
+      status: 500,
+      headers: { ...cabecerasCors(deps.allowedOrigin), 'Content-Type': 'application/json' },
+    });
+  }
+}
+
+async function manejarSolicitud(req: Request, deps: Dependencias): Promise<Response> {
   const cors = cabecerasCors(deps.allowedOrigin);
   const responder = (status: number, cuerpo: Record<string, unknown>) =>
     new Response(JSON.stringify(cuerpo), { status, headers: { ...cors, 'Content-Type': 'application/json' } });

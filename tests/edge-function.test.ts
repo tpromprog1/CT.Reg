@@ -133,6 +133,24 @@ describe('Edge Function enviar-cambio-turno', () => {
     expect(pre.headers.get('Access-Control-Allow-Methods')).toContain('POST');
   });
 
+  it('un error de base no se confunde con "no encontrado": 500 con solo el código', async () => {
+    const { d, enviados, logs } = deps({
+      cargarCambio: async () => { throw new Error('bd:42501'); },
+    });
+    const res = await manejar(pedir('jwt-ana'), d);
+    expect(res.status).toBe(500);
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBe(ORIGEN);
+    expect(await res.json()).toEqual({ ok: false, codigo: 'error_interno', detalle: 'bd:42501' });
+    expect(enviados).toHaveLength(0);
+    expect(logs).toEqual([{ cambio_id: null, resultado: 'error_interno:bd:42501' }]);
+  });
+
+  it('una excepción inesperada no filtra su mensaje', async () => {
+    const { d } = deps({ cargarCambio: async () => { throw new Error('fallo con ana@example.test'); } });
+    const res = await manejar(pedir('jwt-ana'), d);
+    expect(await res.json()).toEqual({ ok: false, codigo: 'error_interno', detalle: 'excepcion' });
+  });
+
   it('los logs no contienen datos personales', async () => {
     const { d, logs } = deps();
     await manejar(pedir('jwt-ana'), d);
