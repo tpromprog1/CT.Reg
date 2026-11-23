@@ -99,6 +99,9 @@ const MENSAJES_ENVIO: Record<string, string> = {
   no_pendiente: 'La solicitud ya no está pendiente.',
   perfil_incompleto: 'Completa tu nombre y el correo de jefatura en Configuración.',
   envio_fallido: 'El proveedor de correo no pudo enviar el mensaje.',
+  no_autenticado: 'Tu sesión no es válida. Cierra sesión y vuelve a entrar.',
+  no_encontrado: 'No se encontró la solicitud.',
+  servicio: 'No se pudo contactar el servicio de correo.',
 };
 
 /** Invoca la Edge Function. Nunca lanza: devuelve un resultado para la UI. */
@@ -106,10 +109,12 @@ export async function enviarCorreoCambio(id: string): Promise<ResultadoEnvio> {
   try {
     const { error } = await supabase.functions.invoke('enviar-cambio-turno', { body: { id } });
     if (!error) return { ok: true };
-    let codigo = 'desconocido';
+    // Sin respuesta legible (p. ej. CORS o el gateway rechazó la llamada): "servicio".
+    let codigo = 'servicio';
     if (error instanceof FunctionsHttpError) {
-      const cuerpo = (await error.context.json().catch(() => null)) as { codigo?: string } | null;
-      codigo = cuerpo?.codigo ?? codigo;
+      const res = error.context as Response;
+      const cuerpo = (await res.json().catch(() => null)) as { codigo?: string } | null;
+      codigo = cuerpo?.codigo ?? (res.status === 401 ? 'no_autenticado' : codigo);
     }
     return { ok: false, codigo, mensaje: MENSAJES_ENVIO[codigo] ?? 'No se pudo enviar el correo.' };
   } catch {

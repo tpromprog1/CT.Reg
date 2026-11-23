@@ -416,4 +416,7 @@ enabled = true
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":180,\"commaStyle\":\"trailing\"}"
 
 [functions.enviar-cambio-turno]
-verify_jwt = true
+# El gateway no valida JWT firmados con las claves asimétricas nuevas (ES256).
+# La función valida el usuario por su cuenta (auth.getUser con el header Authorization)
+# y responde 401 si no es válido.
+verify_jwt = false
